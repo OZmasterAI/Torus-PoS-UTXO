@@ -1,6 +1,16 @@
 # Secrets
 .env
 zk-bridge/.env
+zk-bridge/contracts/broadcast/
+zk-bridge/contracts/cache/
+
+# Build artifacts
+zk-bridge/target/
+zk-bridge/program/target/
+zk-bridge/contracts/out/
+zk-bridge/contracts/lib/
+src/TORUSd
+src/obj/
 
 ### C++ ###
 # Prerequisites
