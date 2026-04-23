@@ -308,6 +308,7 @@ static const CRPCCommand vRPCCommands[] =
     { "sendalert",              &sendalert,              false,  false },
     { "combinedust",            &combinedust,            false,  false },
     { "getmoneysupply",         &getmoneysupply,         true,   false },
+    { "permanentlock",          &permanentlock,          false,  false },
 };
 
 CRPCTable::CRPCTable()

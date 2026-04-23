@@ -41,6 +41,7 @@ enum txnouttype
     TX_SCRIPTHASH,
     TX_MULTISIG,
     TX_NULL_DATA,
+    TX_PERMANENT_STAKE,
 };
 
 class CNoDestination {
@@ -183,7 +184,7 @@ enum opcodetype
     OP_CHECKMULTISIGVERIFY = 0xaf,
 
     // expansion
-    OP_NOP1 = 0xb0,
+    OP_PERMANENT_LOCK = 0xb0,
     OP_NOP2 = 0xb1,
     OP_NOP3 = 0xb2,
     OP_NOP4 = 0xb3,
@@ -615,5 +616,7 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
 // Given two sets of signatures for scriptPubKey, possibly with OP_0 placeholders,
 // combine them intelligently and return the result.
 CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo, unsigned int nIn, const CScript& scriptSig1, const CScript& scriptSig2);
+
+bool IsPermanentStakeScript(const CScript& scriptPubKey);
 
 #endif

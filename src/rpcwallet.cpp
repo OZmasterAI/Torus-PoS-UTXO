@@ -91,6 +91,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("protocolversion",(int)PROTOCOL_VERSION));
     obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
     obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
+    obj.push_back(Pair("permanentstake", ValueFromAmount(pwalletMain->GetPermanentStakeBalance())));
     obj.push_back(Pair("stake",         ValueFromAmount(pwalletMain->GetStake())));
     obj.push_back(Pair("blocks",        (int)nBestHeight));
 
@@ -1889,4 +1890,53 @@ Value getmoneysupply(const Array& params, bool fHelp)
 	Object obj;
 	obj.push_back(Pair("supply", nMoneySupply));
     return obj;
+}
+
+Value permanentlock(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "permanentlock <amount>\n"
+            "Permanently lock <amount> TRS for staking. This is IRREVERSIBLE.\n"
+            "Locked coins will stake automatically and earn rewards.\n"
+            "Rewards are paid as liquid (spendable) coins.\n"
+            "The locked principal can never be spent or unlocked.\n"
+            "Minimum amount: 100 TRS\n"
+            + HelpRequiringPassphrase());
+
+    int64_t nAmount = AmountFromValue(params[0]);
+
+    if (nAmount < MIN_PERMANENT_STAKE)
+        throw JSONRPCError(RPC_INVALID_PARAMETER,
+            strprintf("Amount below minimum permanent stake (%s)", FormatMoney(MIN_PERMANENT_STAKE).c_str()));
+
+    if (nBestHeight < PERMANENT_STAKE_ACTIVATION_HEIGHT)
+        throw JSONRPCError(RPC_MISC_ERROR,
+            strprintf("Permanent staking activates at block %d (current: %d)", PERMANENT_STAKE_ACTIVATION_HEIGHT, nBestHeight));
+
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    // Get a public key from the wallet for the lock script
+    CReserveKey reservekey(pwalletMain);
+    CPubKey vchPubKey;
+    if (!reservekey.GetReservedKey(vchPubKey))
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+
+    // Build the permanent stake script: OP_PERMANENT_LOCK <pubkey> OP_CHECKSIG
+    CScript scriptPermanent;
+    scriptPermanent << OP_PERMANENT_LOCK << vchPubKey << OP_CHECKSIG;
+
+    CWalletTx wtx;
+    string strError = pwalletMain->SendMoney(scriptPermanent, nAmount, wtx);
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    reservekey.KeepKey();
+
+    Object result;
+    result.push_back(Pair("txid", wtx.GetHash().GetHex()));
+    result.push_back(Pair("amount", ValueFromAmount(nAmount)));
+    result.push_back(Pair("warning", "This lock is PERMANENT and IRREVERSIBLE. The principal can never be spent."));
+    return result;
 }

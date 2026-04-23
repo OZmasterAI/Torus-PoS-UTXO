@@ -8,6 +8,7 @@
 #include "txdb.h"
 #include "init.h"
 #include "miner.h"
+#include "wallet.h"
 #include "bitcoinrpc.h"
 
 using namespace json_spirit;
@@ -95,6 +96,9 @@ Value getstakinginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("netstakeweight", (uint64_t)nNetworkWeight));
 
     obj.push_back(Pair("expectedtime", nExpectedTime));
+
+    obj.push_back(Pair("permanentstakebalance", ValueFromAmount(pwalletMain->GetPermanentStakeBalance())));
+    obj.push_back(Pair("permanentstakecount", pwalletMain->GetPermanentStakeCount()));
 
     return obj;
 }

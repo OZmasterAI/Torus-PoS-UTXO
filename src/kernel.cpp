@@ -24,13 +24,19 @@ static std::map<int, unsigned int> mapStakeModifierCheckpointsTestNet =
     ;
 
 // Get time weight
-int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd)
+int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd, bool fPermanentStake)
 {
     // Kernel hash weight starts from 0 at the min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
 
-    return min(nIntervalEnd - nIntervalBeginning - nStakeMinAge, (int64_t)nStakeMaxAge);
+    int64_t nWeight = nIntervalEnd - nIntervalBeginning - nStakeMinAge;
+
+    // Permanently locked stakes have no age cap — they maintain maximum weight
+    if (!fPermanentStake)
+        nWeight = min(nWeight, (int64_t)nStakeMaxAge);
+
+    return nWeight;
 }
 
 // Get the last stake modifier and its generation time from a given block
@@ -278,7 +284,8 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
 
     uint256 hashBlockFrom = blockFrom.GetHash();
 
-    CBigNum bnCoinDayWeight = CBigNum(nValueIn) * GetWeight((int64_t)txPrev.nTime, (int64_t)nTimeTx) / COIN / (24 * 60 * 60);
+    bool fPermanentStake = IsPermanentStakeScript(txPrev.vout[prevout.n].scriptPubKey);
+    CBigNum bnCoinDayWeight = CBigNum(nValueIn) * GetWeight((int64_t)txPrev.nTime, (int64_t)nTimeTx, fPermanentStake) / COIN / (24 * 60 * 60);
     targetProofOfStake = (bnCoinDayWeight * bnTargetPerCoinDay).getuint256();
 
     // Calculate hash

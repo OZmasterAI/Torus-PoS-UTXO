@@ -104,6 +104,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_SCRIPTHASH: return "scripthash";
     case TX_MULTISIG: return "multisig";
     case TX_NULL_DATA: return "nulldata";
+    case TX_PERMANENT_STAKE: return "permanentstake";
     }
     return NULL;
 }
@@ -229,7 +230,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_CHECKMULTISIGVERIFY    : return "OP_CHECKMULTISIGVERIFY";
 
     // expanson
-    case OP_NOP1                   : return "OP_NOP1";
+    case OP_PERMANENT_LOCK          : return "OP_PERMANENT_LOCK";
     case OP_NOP2                   : return "OP_NOP2";
     case OP_NOP3                   : return "OP_NOP3";
     case OP_NOP4                   : return "OP_NOP4";
@@ -405,7 +406,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                 // Control
                 //
                 case OP_NOP:
-                case OP_NOP1: case OP_NOP2: case OP_NOP3: case OP_NOP4: case OP_NOP5:
+                case OP_PERMANENT_LOCK: case OP_NOP2: case OP_NOP3: case OP_NOP4: case OP_NOP5:
                 case OP_NOP6: case OP_NOP7: case OP_NOP8: case OP_NOP9: case OP_NOP10:
                 break;
 
@@ -1277,6 +1278,9 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
 
         // Empty, provably prunable, data-carrying output
         mTemplates.insert(make_pair(TX_NULL_DATA, CScript() << OP_RETURN));
+
+        // Permanently locked staking output
+        mTemplates.insert(make_pair(TX_PERMANENT_STAKE, CScript() << OP_PERMANENT_LOCK << OP_PUBKEY << OP_CHECKSIG));
     }
 
     // Shortcut for pay-to-script-hash, which are more constrained than the other types:
@@ -1426,6 +1430,7 @@ bool Solver(const CKeyStore& keystore, const CScript& scriptPubKey, uint256 hash
     case TX_NULL_DATA:
         return false;
     case TX_PUBKEY:
+    case TX_PERMANENT_STAKE:
         keyID = CPubKey(vSolutions[0]).GetID();
         return Sign1(keyID, keystore, hash, nHashType, scriptSigRet);
     case TX_PUBKEYHASH:
@@ -1457,6 +1462,7 @@ int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned c
     case TX_NULL_DATA:
         return -1;
     case TX_PUBKEY:
+    case TX_PERMANENT_STAKE:
         return 1;
     case TX_PUBKEYHASH:
         return 2;
@@ -1534,6 +1540,7 @@ bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
     case TX_NULL_DATA:
         return false;
     case TX_PUBKEY:
+    case TX_PERMANENT_STAKE:
         keyID = CPubKey(vSolutions[0]).GetID();
         return keystore.HaveKey(keyID);
     case TX_PUBKEYHASH:
@@ -1567,7 +1574,7 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     if (!Solver(scriptPubKey, whichType, vSolutions))
         return false;
 
-    if (whichType == TX_PUBKEY)
+    if (whichType == TX_PUBKEY || whichType == TX_PERMANENT_STAKE)
     {
         addressRet = CPubKey(vSolutions[0]).GetID();
         return true;
@@ -1831,6 +1838,7 @@ static CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo,
         return PushAll(sigs2);
     case TX_PUBKEY:
     case TX_PUBKEYHASH:
+    case TX_PERMANENT_STAKE:
         // Signatures are bigger than placeholders or empty scripts:
         if (sigs1.empty() || sigs1[0].empty())
             return PushAll(sigs2);
@@ -1999,4 +2007,13 @@ void CScript::SetMultisig(int nRequired, const std::vector<CKey>& keys)
     for (const CKey& key : keys)
         *this << key.GetPubKey();
     *this << EncodeOP_N(keys.size()) << OP_CHECKMULTISIG;
+}
+
+bool IsPermanentStakeScript(const CScript& scriptPubKey)
+{
+    txnouttype whichType;
+    std::vector<std::vector<unsigned char> > vSolutions;
+    if (!Solver(scriptPubKey, whichType, vSolutions))
+        return false;
+    return whichType == TX_PERMANENT_STAKE;
 }

@@ -1049,6 +1049,48 @@ int64_t CWallet::GetImmatureBalance() const
     return nTotal;
 }
 
+int64_t CWallet::GetPermanentStakeBalance() const
+{
+    int64_t nTotal = 0;
+    {
+        LOCK(cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (!pcoin->IsFinal() || !pcoin->IsTrusted())
+                continue;
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++)
+            {
+                if (IsMine(pcoin->vout[i]) && !IsSpent(pcoin->GetHash(), i) &&
+                    IsPermanentStakeScript(pcoin->vout[i].scriptPubKey))
+                    nTotal += pcoin->vout[i].nValue;
+            }
+        }
+    }
+    return nTotal;
+}
+
+int CWallet::GetPermanentStakeCount() const
+{
+    int nCount = 0;
+    {
+        LOCK(cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (!pcoin->IsFinal() || !pcoin->IsTrusted())
+                continue;
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++)
+            {
+                if (IsMine(pcoin->vout[i]) && !IsSpent(pcoin->GetHash(), i) &&
+                    IsPermanentStakeScript(pcoin->vout[i].scriptPubKey))
+                    nCount++;
+            }
+        }
+    }
+    return nCount;
+}
+
 // populate vCoins with vector of spendable COutputs
 void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl) const
 {
@@ -1649,11 +1691,11 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
                 }
                 if (fDebug && GetBoolArg("-printcoinstake"))
                     printf("CreateCoinStake : parsed kernel type=%d\n", whichType);
-                if (whichType != TX_PUBKEY && whichType != TX_PUBKEYHASH)
+                if (whichType != TX_PUBKEY && whichType != TX_PUBKEYHASH && whichType != TX_PERMANENT_STAKE)
                 {
                     if (fDebug && GetBoolArg("-printcoinstake"))
                         printf("CreateCoinStake : no support for kernel type=%d\n", whichType);
-                    break;  // only support pay to public key and pay to address
+                    break;  // only support pay to public key, pay to address, and permanent stake
                 }
                 if (whichType == TX_PUBKEYHASH) // pay to address type
                 {
@@ -1666,7 +1708,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
                     }
                     scriptPubKeyOut << key.GetPubKey() << OP_CHECKSIG;
                 }
-                if (whichType == TX_PUBKEY)
+                if (whichType == TX_PUBKEY || whichType == TX_PERMANENT_STAKE)
                 {
                     valtype& vchPubKey = vSolutions[0];
                     if (!keystore.GetKey(Hash160(vchPubKey), key))
@@ -1756,8 +1798,44 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         nCredit += nReward;
     }
 
+    // Check if any input is a permanent stake
+    bool fPermanentStakeInput = false;
+    int64_t nPermanentPrincipal = 0;
+    for (unsigned int i = 0; i < txNew.vin.size(); i++)
+    {
+        const CWalletTx* wtxPrev = vwtxPrev[i];
+        unsigned int nOut = txNew.vin[i].prevout.n;
+        if (IsPermanentStakeScript(wtxPrev->vout[nOut].scriptPubKey))
+        {
+            fPermanentStakeInput = true;
+            nPermanentPrincipal += wtxPrev->vout[nOut].nValue;
+        }
+    }
+
     // Set output amount
-    if (txNew.vout.size() == 3)
+    if (fPermanentStakeInput)
+    {
+        // Permanent stake: re-lock principal, send reward as liquid
+        int64_t nRewardOnly = nCredit - nPermanentPrincipal;
+
+        // Remove any split output added during kernel search
+        while (txNew.vout.size() > 2)
+            txNew.vout.pop_back();
+
+        // vout[0] = empty marker (already set)
+        // vout[1] = re-locked principal (permanent stake script preserved)
+        txNew.vout[1].nValue = nPermanentPrincipal;
+        txNew.vout[1].scriptPubKey = scriptPubKeyKernel;
+
+        // vout[2] = liquid reward (standard pubkey script)
+        if (nRewardOnly > 0)
+        {
+            CScript scriptReward;
+            scriptReward << key.GetPubKey() << OP_CHECKSIG;
+            txNew.vout.push_back(CTxOut(nRewardOnly, scriptReward));
+        }
+    }
+    else if (txNew.vout.size() == 3)
     {
         txNew.vout[1].nValue = (nCredit / 2 / CENT) * CENT;
         txNew.vout[2].nValue = nCredit - txNew.vout[1].nValue;

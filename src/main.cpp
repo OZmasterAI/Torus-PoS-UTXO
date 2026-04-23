@@ -484,6 +484,14 @@ bool CTransaction::CheckTransaction() const
             return DoS(100, error("CTransaction::CheckTransaction() : txout total out of range"));
     }
 
+    // Check permanent stake outputs meet minimum amount
+    for (unsigned int i = 0; i < vout.size(); i++)
+    {
+        if (IsPermanentStakeScript(vout[i].scriptPubKey) && vout[i].nValue < MIN_PERMANENT_STAKE)
+            return DoS(100, error("CTransaction::CheckTransaction() : permanent stake output below minimum (%s < %s)",
+                FormatMoney(vout[i].nValue).c_str(), FormatMoney(MIN_PERMANENT_STAKE).c_str()));
+    }
+
     // Check for duplicate inputs
     set<COutPoint> vInOutPoints;
     for (const CTxIn& txin : vin)
@@ -1308,6 +1316,12 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             if (txPrev.nTime > nTime)
                 return DoS(100, error("ConnectInputs() : transaction timestamp earlier than input transaction"));
 
+            // Permanent stake: locked outputs can only be spent in a coinstake transaction
+            if (pindexBlock->nHeight >= PERMANENT_STAKE_ACTIVATION_HEIGHT &&
+                IsPermanentStakeScript(txPrev.vout[prevout.n].scriptPubKey) &&
+                !IsCoinStake())
+                return DoS(100, error("ConnectInputs() : tried to spend permanently locked output in non-coinstake transaction"));
+
             // Check for negative or overflow input values
             nValueIn += txPrev.vout[prevout.n].nValue;
             if (!MoneyRange(txPrev.vout[prevout.n].nValue) || !MoneyRange(nValueIn))
@@ -1370,6 +1384,33 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             if (!MoneyRange(nFees))
                 return DoS(100, error("ConnectInputs() : nFees out of range"));
         }
+        else if (pindexBlock->nHeight >= PERMANENT_STAKE_ACTIVATION_HEIGHT)
+        {
+            // Coinstake spending permanent stake inputs must re-lock the principal
+            int64_t nPermanentIn = 0;
+            for (unsigned int i = 0; i < vin.size(); i++)
+            {
+                COutPoint prevout = vin[i].prevout;
+                CTransaction& txPrev = inputs[prevout.hash].second;
+                if (IsPermanentStakeScript(txPrev.vout[prevout.n].scriptPubKey))
+                    nPermanentIn += txPrev.vout[prevout.n].nValue;
+            }
+
+            if (nPermanentIn > 0)
+            {
+                // Sum value sent to permanent stake outputs in this transaction
+                int64_t nPermanentOut = 0;
+                for (unsigned int i = 0; i < vout.size(); i++)
+                {
+                    if (IsPermanentStakeScript(vout[i].scriptPubKey))
+                        nPermanentOut += vout[i].nValue;
+                }
+
+                if (nPermanentOut < nPermanentIn)
+                    return DoS(100, error("ConnectInputs() : coinstake does not re-lock permanent stake principal (%s < %s)",
+                        FormatMoney(nPermanentOut).c_str(), FormatMoney(nPermanentIn).c_str()));
+            }
+        }
     }
 
     return true;
@@ -1394,6 +1435,10 @@ bool CTransaction::ClientConnectInputs()
 
             if (prevout.n >= txPrev.vout.size())
                 return false;
+
+            // Reject mempool transactions that spend permanently locked outputs
+            if (IsPermanentStakeScript(txPrev.vout[prevout.n].scriptPubKey))
+                return error("ClientConnectInputs() : tried to spend permanently locked output");
 
             // Verify signature
             if (!VerifySignature(txPrev, *this, i, 0))
