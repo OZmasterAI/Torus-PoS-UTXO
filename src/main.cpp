@@ -1437,7 +1437,8 @@ bool CTransaction::ClientConnectInputs()
                 return false;
 
             // Reject mempool transactions that spend permanently locked outputs
-            if (IsPermanentStakeScript(txPrev.vout[prevout.n].scriptPubKey))
+            if (nBestHeight >= PERMANENT_STAKE_ACTIVATION_HEIGHT &&
+                IsPermanentStakeScript(txPrev.vout[prevout.n].scriptPubKey))
                 return error("ClientConnectInputs() : tried to spend permanently locked output");
 
             // Verify signature

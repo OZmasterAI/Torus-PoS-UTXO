@@ -32,8 +32,10 @@ int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd, bool fPerman
 
     int64_t nWeight = nIntervalEnd - nIntervalBeginning - nStakeMinAge;
 
-    // Permanently locked stakes have no age cap — they maintain maximum weight
-    if (!fPermanentStake)
+    // Permanently locked stakes get 4x the normal age cap (360 days vs 90 days)
+    if (fPermanentStake)
+        nWeight = min(nWeight, (int64_t)nStakeMaxAge * 4);
+    else
         nWeight = min(nWeight, (int64_t)nStakeMaxAge);
 
     return nWeight;

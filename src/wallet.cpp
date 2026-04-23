@@ -1016,6 +1016,9 @@ int64_t CWallet::GetBalance() const
         }
     }
 
+    // Exclude permanently locked coins from spendable balance
+    nTotal -= GetPermanentStakeBalance();
+
     return nTotal;
 }
 
@@ -1061,7 +1064,7 @@ int64_t CWallet::GetPermanentStakeBalance() const
                 continue;
             for (unsigned int i = 0; i < pcoin->vout.size(); i++)
             {
-                if (IsMine(pcoin->vout[i]) && !IsSpent(pcoin->GetHash(), i) &&
+                if (IsMine(pcoin->vout[i]) && !pcoin->IsSpent(i) &&
                     IsPermanentStakeScript(pcoin->vout[i].scriptPubKey))
                     nTotal += pcoin->vout[i].nValue;
             }
@@ -1082,7 +1085,7 @@ int CWallet::GetPermanentStakeCount() const
                 continue;
             for (unsigned int i = 0; i < pcoin->vout.size(); i++)
             {
-                if (IsMine(pcoin->vout[i]) && !IsSpent(pcoin->GetHash(), i) &&
+                if (IsMine(pcoin->vout[i]) && !pcoin->IsSpent(i) &&
                     IsPermanentStakeScript(pcoin->vout[i].scriptPubKey))
                     nCount++;
             }
@@ -1120,6 +1123,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++)
                 if (!(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue >= nMinimumInputValue &&
+                !IsPermanentStakeScript(pcoin->vout[i].scriptPubKey) &&
                 (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i)))
                     vCoins.push_back(COutput(pcoin, i, nDepth));
 
@@ -1801,6 +1805,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     // Check if any input is a permanent stake
     bool fPermanentStakeInput = false;
     int64_t nPermanentPrincipal = 0;
+    CScript scriptPermanentRelock;
     for (unsigned int i = 0; i < txNew.vin.size(); i++)
     {
         const CWalletTx* wtxPrev = vwtxPrev[i];
@@ -1809,6 +1814,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         {
             fPermanentStakeInput = true;
             nPermanentPrincipal += wtxPrev->vout[nOut].nValue;
+            if (scriptPermanentRelock.empty())
+                scriptPermanentRelock = wtxPrev->vout[nOut].scriptPubKey;
         }
     }
 
@@ -1823,9 +1830,9 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             txNew.vout.pop_back();
 
         // vout[0] = empty marker (already set)
-        // vout[1] = re-locked principal (permanent stake script preserved)
+        // vout[1] = re-locked principal (uses actual permanent stake script)
         txNew.vout[1].nValue = nPermanentPrincipal;
-        txNew.vout[1].scriptPubKey = scriptPubKeyKernel;
+        txNew.vout[1].scriptPubKey = scriptPermanentRelock;
 
         // vout[2] = liquid reward (standard pubkey script)
         if (nRewardOnly > 0)
