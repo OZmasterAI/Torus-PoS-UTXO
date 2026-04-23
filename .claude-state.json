@@ -1,0 +1,18 @@
+{
+  "session_count": 1,
+  "feature": "permanent-staking",
+  "framework_version": "v2.8.0",
+  "what_was_done": "Cloned torus-core, implemented permanent locked staking (OP_PERMANENT_LOCK, consensus, kernel, wallet, RPC, Qt GUI), fixed OpenSSL/glibc compat, built successfully, added ZK bridge research doc",
+  "known_issues": [
+    "Build requires USE_UPNP=- flag (miniupnpc not installed)",
+    "Phase 8 (unit tests) not yet written",
+    "Qt GUI not build-tested (only daemon build verified)"
+  ],
+  "next_steps": [
+    "ZK-proof bridge PoC: evaluate SP1 vs Risc0, port CheckStakeKernelHash to Rust (see doc/zk-bridge-research.md)",
+    "Write unit tests for permanent staking (IsPermanentStakeScript, GetWeight with flag, consensus rules)",
+    "Build and test Qt wallet (qmake + make)",
+    "Consider threshold bridge (option 2) as interim shippable solution",
+    "Set activation height for mainnet (currently 450000, verify against current block height)"
+  ]
+}
