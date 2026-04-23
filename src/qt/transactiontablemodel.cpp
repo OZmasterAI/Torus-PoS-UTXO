@@ -357,6 +357,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Sent to");
     case TransactionRecord::SendToSelf:
         return tr("Payment to yourself");
+    case TransactionRecord::PermanentStakeLock:
+        return tr("Permanent Stake Lock");
     case TransactionRecord::Generated:
         return tr("Minted");
     default:
@@ -376,6 +378,8 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SendToOther:
         return QIcon(":/icons/tx_output");
+    case TransactionRecord::PermanentStakeLock:
+        return QIcon(":/icons/tx_mined");
     default:
         return QIcon(":/icons/tx_inout");
     }
@@ -395,6 +399,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address);
     case TransactionRecord::SendToSelf:
+    case TransactionRecord::PermanentStakeLock:
         return lookupAddress(wtx->address, tooltip);
     default:
         return tr("(n/a)");
