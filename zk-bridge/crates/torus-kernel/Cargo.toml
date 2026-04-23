@@ -1,0 +1,12 @@
+[package]
+name = "torus-kernel"
+version = "0.1.0"
+edition = "2021"
+description = "Torus-core PoS kernel hash verification for ZK proofs"
+
+[dependencies]
+sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+hex = "0.4"

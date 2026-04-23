@@ -1,0 +1,4 @@
+[workspace]
+members = ["crates/torus-kernel", "script"]
+exclude = ["program"]
+resolver = "2"

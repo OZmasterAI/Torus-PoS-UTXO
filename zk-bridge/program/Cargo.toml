@@ -1,0 +1,9 @@
+[package]
+name = "torus-bridge-program"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sp1-zkvm = "6"
+torus-kernel = { path = "../crates/torus-kernel" }
+serde = { version = "1", features = ["derive"] }
