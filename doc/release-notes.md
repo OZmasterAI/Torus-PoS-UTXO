@@ -2,6 +2,44 @@
 
 *****************************
 
+## Release v2.0.0 - Permanent Staking (Hard Fork)
+
+**IMPORTANT: This release contains consensus changes. All nodes must upgrade before block 450,000.**
+
+#### Added
+
+- **Permanent Locked Staking** — Irreversibly lock TRS for staking rewards
+    - New `OP_PERMANENT_LOCK` opcode and `TX_PERMANENT_STAKE` script type
+    - Locked coins stake automatically and earn rewards paid as liquid (spendable) UTXOs
+    - The locked principal can never be spent or unlocked
+    - Minimum lock amount: 100 TRS
+    - Locked stakes receive 4x the normal coin age cap (360 days vs 90 days), giving them consistently higher staking priority
+    - Consensus enforced: non-coinstake transactions cannot spend locked outputs, coinstake must re-lock the full principal
+- New RPC command: `permanentlock <amount>` — creates a permanent stake transaction
+- `getstakinginfo` now reports `permanentstakebalance` and `permanentstakecount`
+- `getinfo` now shows `permanentstake` balance separately from spendable balance
+- Wallet GUI: permanent stake balance displayed on overview page
+- Transaction history: permanent stake lock transactions shown with distinct label
+
+#### Changed
+
+- `GetBalance()` excludes permanently locked coins from spendable balance
+- `AvailableCoins()` filters out permanent stake UTXOs from regular coin selection
+- `GetWeight()` accepts optional permanent stake flag for extended age cap
+
+#### Fixed
+
+- OpenSSL 3.0 compatibility: `BN_zero()` void return handling in `key.cpp`
+- glibc 2.38+ compatibility: `strlcpy`/`strlcat` redefinition guards in `strlcpy.h`
+
+#### Activation
+
+- Block height: **450,000**
+- Before activation: permanent stake outputs are not recognized by consensus
+- After activation: all consensus rules are enforced
+
+*****************************
+
 ## Release [v1.0.3](https://github.com/torus-economy/torus-core/releases/tag/v1.0.3) - 05 Aug 2023
 
 #### Added

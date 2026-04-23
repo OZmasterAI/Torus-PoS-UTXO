@@ -19,6 +19,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+// glibc 2.38+ provides strlcpy/strlcat natively; skip our definitions
+#ifndef __GLIBC_PREREQ
+#define __GLIBC_PREREQ(maj, min) 0
+#endif
+
+#if !__GLIBC_PREREQ(2, 38)
+
 /*
  * Copy src to string dst of size siz.  At most siz-1 characters
  * will be copied.  Always NUL terminates (unless siz == 0).
@@ -87,4 +94,6 @@ inline size_t strlcat(char *dst, const char *src, size_t siz)
 
     return(dlen + (s - src)); /* count does not include NUL */
 }
-#endif
+
+#endif /* !__GLIBC_PREREQ(2, 38) */
+#endif /* BITCOIN_STRLCPY_H */
