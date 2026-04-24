@@ -29,6 +29,9 @@ public:
     QString address;
     QString label;
     qint64 amount;
+    bool isPermanentStake;
+
+    SendCoinsRecipient() : amount(0), isPermanentStake(false) {}
 };
 
 /** Interface to Bitcoin wallet from Qt view code. */

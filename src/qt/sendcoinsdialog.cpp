@@ -153,7 +153,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     {
         return;
     }
-	
+
 	WalletModel::SendCoinsReturn sendstatus; 
 	//set split block 
 	int nSplitBlock = 1; 

@@ -8,6 +8,8 @@
 #include "wallet.h"
 #include "walletdb.h" // for BackupWallet
 #include "base58.h"
+#include "main.h"
+#include "script.h"
 
 #include <QSet>
 #include <QTimer>
@@ -163,6 +165,15 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         {
             return InvalidAmount;
         }
+
+        if(rcp.isPermanentStake)
+        {
+            if(rcp.amount < MIN_PERMANENT_STAKE)
+                return InvalidAmount;
+            if(nBestHeight < PERMANENT_STAKE_ACTIVATION_HEIGHT)
+                return InvalidAmount;
+        }
+
         total += rcp.amount;
     }
 
@@ -193,10 +204,21 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
 
         // Sendmany
         std::vector<std::pair<CScript, int64_t> > vecSend;
+        CReserveKey reservekey(wallet);
         foreach(const SendCoinsRecipient &rcp, recipients)
         {
             CScript scriptPubKey;
-            scriptPubKey.SetDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
+            if(rcp.isPermanentStake)
+            {
+                CPubKey vchPubKey;
+                if(!reservekey.GetReservedKey(vchPubKey))
+                    return TransactionCreationFailed;
+                scriptPubKey << OP_PERMANENT_LOCK << vchPubKey << OP_CHECKSIG;
+            }
+            else
+            {
+                scriptPubKey.SetDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
+            }
             vecSend.push_back(make_pair(scriptPubKey, rcp.amount));
         }
 
@@ -221,6 +243,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         {
             return TransactionCommitFailed;
         }
+        reservekey.KeepKey();
         hex = QString::fromStdString(wtx.GetHash().GetHex());
     }
 

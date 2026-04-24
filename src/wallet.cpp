@@ -1787,6 +1787,27 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 	        }
 	    }
 	}
+
+    // Permanent stake: combine all matching UTXOs into one
+    if (IsPermanentStakeScript(scriptPubKeyKernel))
+    {
+        for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins)
+        {
+            if (pcoin.first->GetHash() == txNew.vin[0].prevout.hash && pcoin.second == txNew.vin[0].prevout.n)
+                continue;
+            if (pcoin.first->vout[pcoin.second].scriptPubKey != scriptPubKeyKernel)
+                continue;
+            int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, (int64_t)txNew.nTime);
+            if (nTimeWeight < nStakeMinAge)
+                continue;
+            if (txNew.vin.size() >= 100)
+                break;
+
+            txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
+            nCredit += pcoin.first->vout[pcoin.second].nValue;
+            vwtxPrev.push_back(pcoin.first);
+        }
+    }
 	
     // Calculate coin age reward
     {
