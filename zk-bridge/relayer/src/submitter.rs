@@ -20,10 +20,23 @@ alloy::sol! {
     }
 }
 
+alloy::sol! {
+    #[sol(rpc)]
+    contract BridgeControllerRpc {
+        function confirmWithdrawal(
+            bytes32 withdrawalId,
+            bytes calldata proof,
+            bytes32 blockHash,
+            bytes32 txHash
+        ) external;
+    }
+}
+
 pub struct SepoliaSubmitter {
     rpc_url: String,
     wallet: EthereumWallet,
     contract_address: Address,
+    bridge_controller_address: Option<Address>,
 }
 
 impl SepoliaSubmitter {
@@ -37,7 +50,13 @@ impl SepoliaSubmitter {
             rpc_url: rpc_url.to_string(),
             wallet,
             contract_address: address,
+            bridge_controller_address: None,
         })
+    }
+
+    pub fn with_bridge_controller(mut self, address: &str) -> Result<Self> {
+        self.bridge_controller_address = Some(Address::from_str(address)?);
+        Ok(self)
     }
 
     pub async fn submit_mint(&self, proof_result: &ProofResult) -> Result<String> {
@@ -71,5 +90,40 @@ impl SepoliaSubmitter {
         info!("Mint confirmed: {}", mint_tx_hash);
 
         Ok(mint_tx_hash)
+    }
+
+    pub async fn confirm_withdrawal(
+        &self,
+        withdrawal_id: FixedBytes<32>,
+        proof: Vec<u8>,
+        block_hash: FixedBytes<32>,
+        tx_hash: FixedBytes<32>,
+    ) -> Result<String> {
+        let controller_addr = self
+            .bridge_controller_address
+            .ok_or_else(|| eyre::eyre!("bridge controller address not configured"))?;
+
+        let provider = ProviderBuilder::new()
+            .wallet(self.wallet.clone())
+            .connect_http(self.rpc_url.parse()?);
+
+        let contract = BridgeControllerRpc::new(controller_addr, &provider);
+
+        info!("Submitting confirmWithdrawal to BridgeController...");
+        info!("  Withdrawal ID: {}", withdrawal_id);
+        info!("  Block hash:    {}", block_hash);
+        info!("  TX hash:       {}", tx_hash);
+
+        let receipt = contract
+            .confirmWithdrawal(withdrawal_id, Bytes::from(proof), block_hash, tx_hash)
+            .send()
+            .await?
+            .get_receipt()
+            .await?;
+
+        let confirm_tx_hash = format!("{}", receipt.transaction_hash);
+        info!("Withdrawal confirmed: {}", confirm_tx_hash);
+
+        Ok(confirm_tx_hash)
     }
 }

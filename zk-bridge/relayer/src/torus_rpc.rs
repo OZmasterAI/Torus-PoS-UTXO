@@ -178,6 +178,20 @@ impl TorusRpcClient {
         })
     }
 
+    pub async fn send_raw_transaction(&self, hex_tx: &str) -> Result<String> {
+        let result = self.call("sendrawtransaction", &[json!(hex_tx)]).await?;
+        Ok(result.as_str().unwrap_or_default().to_string())
+    }
+
+    pub async fn get_transaction(&self, txid: &str) -> Result<Value> {
+        self.call("gettransaction", &[json!(txid)]).await
+    }
+
+    pub async fn list_unspent(&self, address: &str) -> Result<Vec<Value>> {
+        let result = self.call("listunspent", &[json!(1), json!(9999999), json!([address])]).await?;
+        result.as_array().cloned().ok_or_else(|| eyre!("invalid listunspent response"))
+    }
+
     async fn parse_kernel_input(&self, block: &Value) -> Result<StakeKernelInput> {
         let n_bits =
             u32::from_str_radix(block["bits"].as_str().unwrap_or("0"), 16)?;

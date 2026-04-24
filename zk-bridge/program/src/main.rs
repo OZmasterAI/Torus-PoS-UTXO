@@ -7,7 +7,10 @@ use torus_kernel::{
 };
 
 pub fn main() {
-    // --- Private inputs ---
+    let mode: u8 = sp1_zkvm::io::read();
+    assert!(mode <= 1, "invalid mode: must be 0 (deposit) or 1 (withdrawal)");
+
+    // --- Private inputs (same for both modes) ---
     let header: BlockHeader = sp1_zkvm::io::read();
     let kernel_input: StakeKernelInput = sp1_zkvm::io::read();
     let deposit_tx_hash: [u8; 32] = sp1_zkvm::io::read();

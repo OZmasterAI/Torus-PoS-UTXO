@@ -1,6 +1,6 @@
 use eyre::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -16,6 +16,11 @@ pub struct ProcessedDeposit {
 pub struct RelayerState {
     pub last_block_hash: Option<String>,
     pub processed_deposits: HashMap<String, ProcessedDeposit>,
+
+    #[serde(default)]
+    pub last_withdrawal_block: u64,
+    #[serde(default)]
+    pub processed_withdrawals: HashSet<String>,
 
     #[serde(skip)]
     file_path: PathBuf,
@@ -69,5 +74,14 @@ impl RelayerState {
         );
         self.save()?;
         Ok(())
+    }
+
+    pub fn mark_withdrawal_processed(&mut self, id: &str) -> Result<()> {
+        self.processed_withdrawals.insert(id.to_string());
+        self.save()
+    }
+
+    pub fn is_withdrawal_processed(&self, id: &str) -> bool {
+        self.processed_withdrawals.contains(id)
     }
 }
