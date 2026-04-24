@@ -1,22 +1,23 @@
 {
-  "session_count": 4,
+  "session_count": 8,
   "feature": "zk-bridge",
   "framework_version": "v2.8.0",
-  "what_was_done": "Full ZK circuit (kernel+Merkle), benchmarked (56k cycles), SP1Verifier contract, deployed ThresholdVerifier+WrappedTRS to BSC testnet, 1000 wTRS minted",
+  "what_was_done": "Generated Groth16 proof via SP1 Prover Network (34.7s, 356 bytes). Deployed ThresholdVerifier + WrappedTRS + SP1Verifier to Sepolia. ZK mint 1000 wTRS verified on-chain via SP1VerifierGateway. Full e2e bridge pipeline working.",
   "known_issues": [
     "Build requires USE_UPNP=- flag (miniupnpc not installed)",
     "Phase 8 (unit tests) not yet written",
     "Qt GUI not build-tested (only daemon build verified)",
-    "Groth16 proving needs SP1 Prover Network API key or CUDA GPU"
+    "Clore.ai GPU rental SSH broken (4 servers tried, daemon never starts)",
+    "Torus-core has no regtest mode (only mainnet/testnet)"
   ],
   "next_steps": [
-    "Unit tests for permanent staking (IsPermanentStakeScript, GetWeight, consensus rules)",
-    "Build and test Qt wallet (qmake + make)",
-    "Torus-core regtest node for real deposit testing",
-    "SP1Verifier integration — Groth16 wrapping (needs API key)",
-    "Relayer service — watch torus-core deposits, submit ZK proofs to BSC"
+    "Relayer service — watch torus-core deposits, generate ZK proofs, submit to Sepolia/BSC",
+    "Torus-core testnet node for real deposit testing",
+    "Production deployment on BSC mainnet (SP1 gateway at 0x940467b2)",
+    "Unit tests for permanent staking",
+    "Qt wallet build/test"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-04-23T15:28:00",
+  "last_updated": "2026-04-24T03:25:00",
   "dag_branch": "main"
 }

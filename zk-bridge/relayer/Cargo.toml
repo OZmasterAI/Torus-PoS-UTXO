@@ -1,0 +1,22 @@
+[package]
+name = "torus-bridge-relayer"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["network"]
+network = ["sp1-sdk/network"]
+
+[dependencies]
+sp1-sdk = { version = "6", features = ["blocking"] }
+torus-kernel = { path = "../crates/torus-kernel" }
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json"] }
+alloy = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+eyre = "0.6"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+dotenvy = "0.15"
