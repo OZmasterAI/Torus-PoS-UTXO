@@ -7842,9 +7842,11 @@ name = "torus-bridge-relayer"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "axum",
  "dotenvy",
  "eyre",
  "hex",
+ "k256",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
