@@ -1,8 +1,8 @@
 {
-  "session_count": 13,
-  "feature": "zk-bridge",
+  "session_count": 17,
+  "feature": "withdrawal-pipeline",
   "framework_version": "v2.8.0",
-  "what_was_done": "Implemented 4 covenant opcodes (CLTV, CHECKSIGFROMSTACKVERIFY, OUTPUTAMOUNT, OUTPUTSCRIPT) in script engine. Added activation height guard (block 500000). Built createcovenantaddress RPC. BridgeController.sol with 26/26 tests. Wrote covenant unit tests. Planned withdrawal pipeline (9 tasks).",
+  "what_was_done": "Completed all 9 withdrawal pipeline tasks: SP1 mode byte, prover, axum API, Sepolia watcher, covenant TX builder, submitter, state tracking, main loop, e2e test. 937 lines across 13 files. Both bridge directions implemented.",
   "known_issues": [
     "Build requires USE_UPNP=- flag (miniupnpc not installed)",
     "Qt GUI not build-tested (only daemon build verified)",
@@ -10,12 +10,13 @@
     "Test binary (test_torus) has no Makefile target — tests written but not compiled"
   ],
   "next_steps": [
-    "Implement withdrawal pipeline (9 tasks) — see docs/plans/withdrawal-pipeline-impl.md",
-    "Task 10: Deploy BridgeController to Sepolia (deploy script ready, needs keys)",
-    "Run torus-core testnet node for real covenant testing",
-    "Production deployment on BSC mainnet"
+    "Integration test with live torus-core node + Sepolia testnet",
+    "Deploy BridgeController to Sepolia (deploy script ready, needs keys)",
+    "Set covenant activation height for testnet",
+    "Wire BridgeController slashing to withdrawal proofs",
+    "Full round-trip test (deposit + withdrawal)"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-04-24T09:53:00",
+  "last_updated": "2026-04-24T18:30:00",
   "dag_branch": "main"
 }
