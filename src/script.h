@@ -18,6 +18,11 @@
 
 typedef std::vector<unsigned char> valtype;
 
+enum {
+    SCRIPT_VERIFY_NONE      = 0,
+    SCRIPT_VERIFY_COVENANTS = (1U << 0),
+};
+
 class CTransaction;
 
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520; // bytes
@@ -185,10 +190,19 @@ enum opcodetype
 
     // expansion
     OP_PERMANENT_LOCK = 0xb0,
-    OP_NOP2 = 0xb1,
-    OP_NOP3 = 0xb2,
-    OP_NOP4 = 0xb3,
-    OP_NOP5 = 0xb4,
+
+    OP_CHECKLOCKTIMEVERIFY = 0xb1,
+    OP_NOP2 = OP_CHECKLOCKTIMEVERIFY,
+
+    OP_CHECKSIGFROMSTACKVERIFY = 0xb2,
+    OP_NOP3 = OP_CHECKSIGFROMSTACKVERIFY,
+
+    OP_OUTPUTAMOUNT = 0xb3,
+    OP_NOP4 = OP_OUTPUTAMOUNT,
+
+    OP_OUTPUTSCRIPT = 0xb4,
+    OP_NOP5 = OP_OUTPUTSCRIPT,
+
     OP_NOP6 = 0xb5,
     OP_NOP7 = 0xb6,
     OP_NOP8 = 0xb7,
@@ -598,7 +612,7 @@ public:
 
 
 
-bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, const CTransaction& txTo, unsigned int nIn, int nHashType);
+bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, const CTransaction& txTo, unsigned int nIn, int nHashType, unsigned int flags = SCRIPT_VERIFY_NONE);
 bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet);
 int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned char> >& vSolutions);
 bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
@@ -610,8 +624,8 @@ bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, std::
 bool SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransaction& txTo, unsigned int nIn, int nHashType=SIGHASH_ALL);
 bool SignSignature(const CKeyStore& keystore, const CTransaction& txFrom, CTransaction& txTo, unsigned int nIn, int nHashType=SIGHASH_ALL);
 bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const CTransaction& txTo, unsigned int nIn,
-                  int nHashType);
-bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsigned int nIn, int nHashType);
+                  int nHashType, unsigned int flags = SCRIPT_VERIFY_NONE);
+bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsigned int nIn, int nHashType, unsigned int flags = SCRIPT_VERIFY_NONE);
 
 // Given two sets of signatures for scriptPubKey, possibly with OP_0 placeholders,
 // combine them intelligently and return the result.

@@ -1349,8 +1349,11 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             // still computed and checked, and any change will be caught at the next checkpoint.
             if (!(fBlock && (nBestHeight < Checkpoints::GetTotalBlocksEstimate())))
             {
-                // Verify signature
-                if (!VerifySignature(txPrev, *this, i, 0))
+                unsigned int nScriptFlags = SCRIPT_VERIFY_NONE;
+                if (pindexBlock->nHeight >= COVENANT_ACTIVATION_HEIGHT)
+                    nScriptFlags |= SCRIPT_VERIFY_COVENANTS;
+
+                if (!VerifySignature(txPrev, *this, i, 0, nScriptFlags))
                 {
                     return DoS(100,error("ConnectInputs() : %s VerifySignature failed", GetHash().ToString().substr(0,10).c_str()));
                 }
@@ -1442,7 +1445,10 @@ bool CTransaction::ClientConnectInputs()
                 return error("ClientConnectInputs() : tried to spend permanently locked output");
 
             // Verify signature
-            if (!VerifySignature(txPrev, *this, i, 0))
+            unsigned int nScriptFlags = SCRIPT_VERIFY_NONE;
+            if (nBestHeight >= COVENANT_ACTIVATION_HEIGHT)
+                nScriptFlags |= SCRIPT_VERIFY_COVENANTS;
+            if (!VerifySignature(txPrev, *this, i, 0, nScriptFlags))
                 return error("ConnectInputs() : VerifySignature failed");
 
             ///// this is redundant with the mempool.mapNextTx stuff,

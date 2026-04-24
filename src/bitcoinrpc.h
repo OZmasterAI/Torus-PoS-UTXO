@@ -221,5 +221,6 @@ extern json_spirit::Value getblockbynumber(const json_spirit::Array& params, boo
 extern json_spirit::Value getcheckpoint(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getmoneysupply(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value permanentlock(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value createcovenantaddress(const json_spirit::Array& params, bool fHelp);
 
 #endif

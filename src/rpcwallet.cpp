@@ -1940,3 +1940,90 @@ Value permanentlock(const Array& params, bool fHelp)
     result.push_back(Pair("warning", "This lock is PERMANENT and IRREVERSIBLE. The principal can never be spent."));
     return result;
 }
+
+Value createcovenantaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 4)
+        throw runtime_error(
+            "createcovenantaddress '[\"op_pubkey1\",...]' <threshold> <depositor_pubkey> <locktime>\n"
+            "Create a P2SH bridge covenant address.\n"
+            "  operator pubkeys: array of hex-encoded public keys\n"
+            "  threshold: required operator signatures (e.g. 3 for 3-of-5)\n"
+            "  depositor_pubkey: hex-encoded public key for timeout recovery\n"
+            "  locktime: block height for depositor timeout recovery\n"
+            "Returns the P2SH address and redeemScript hex.");
+
+    const Array& opKeys = params[0].get_array();
+    int nThreshold = params[1].get_int();
+    string strDepositorPub = params[2].get_str();
+    int nLockTime = params[3].get_int();
+
+    if (opKeys.size() < 1 || opKeys.size() > 16)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Need 1-16 operator pubkeys");
+    if (nThreshold < 1 || nThreshold > (int)opKeys.size())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Threshold must be between 1 and number of operator keys");
+    if (nLockTime < 1)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Locktime must be positive");
+
+    // Parse operator pubkeys
+    std::vector<CKey> vOpKeys;
+    for (unsigned int i = 0; i < opKeys.size(); i++)
+    {
+        string ks = opKeys[i].get_str();
+        if (!IsHex(ks))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Operator pubkey is not hex: " + ks);
+        CPubKey vchPubKey(ParseHex(ks));
+        CKey key;
+        if (!vchPubKey.IsValid() || !key.SetPubKey(vchPubKey))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid operator pubkey: " + ks);
+        vOpKeys.push_back(key);
+    }
+
+    // Parse depositor pubkey
+    if (!IsHex(strDepositorPub))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Depositor pubkey is not hex");
+    CPubKey depositorPub(ParseHex(strDepositorPub));
+    if (!depositorPub.IsValid())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid depositor pubkey");
+
+    // Build the covenant redeemScript
+    CScript redeemScript;
+
+    // Path A: Operator withdrawal
+    redeemScript << OP_IF;
+
+    // 1. Multisig verification
+    redeemScript << nThreshold;
+    for (unsigned int i = 0; i < vOpKeys.size(); i++)
+        redeemScript << vOpKeys[i].GetPubKey();
+    redeemScript << (int)vOpKeys.size();
+    redeemScript << OP_CHECKMULTISIGVERIFY;
+
+    // 2. Recipient co-signature
+    redeemScript << OP_CHECKSIGFROMSTACKVERIFY;
+
+    // 3. Output amount verification
+    redeemScript << OP_0 << OP_OUTPUTAMOUNT << OP_EQUALVERIFY;
+
+    // 4. Output script verification
+    redeemScript << OP_0 << OP_OUTPUTSCRIPT << OP_HASH160 << OP_EQUALVERIFY;
+
+    redeemScript << OP_TRUE;
+
+    // Path B: Depositor timeout recovery
+    redeemScript << OP_ELSE;
+    redeemScript << CBigNum(nLockTime) << OP_CHECKLOCKTIMEVERIFY << OP_DROP;
+    redeemScript << depositorPub << OP_CHECKSIG;
+    redeemScript << OP_ENDIF;
+
+    if (redeemScript.size() > MAX_SCRIPT_ELEMENT_SIZE)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "RedeemScript exceeds size limit");
+
+    // Wrap in P2SH
+    CScriptID scriptID = redeemScript.GetID();
+
+    Object result;
+    result.push_back(Pair("address", CBitcoinAddress(scriptID).ToString()));
+    result.push_back(Pair("redeemScript", HexStr(redeemScript.begin(), redeemScript.end())));
+    return result;
+}

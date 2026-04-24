@@ -231,10 +231,10 @@ const char* GetOpName(opcodetype opcode)
 
     // expanson
     case OP_PERMANENT_LOCK          : return "OP_PERMANENT_LOCK";
-    case OP_NOP2                   : return "OP_NOP2";
-    case OP_NOP3                   : return "OP_NOP3";
-    case OP_NOP4                   : return "OP_NOP4";
-    case OP_NOP5                   : return "OP_NOP5";
+    case OP_CHECKLOCKTIMEVERIFY    : return "OP_CHECKLOCKTIMEVERIFY";
+    case OP_CHECKSIGFROMSTACKVERIFY: return "OP_CHECKSIGFROMSTACKVERIFY";
+    case OP_OUTPUTAMOUNT           : return "OP_OUTPUTAMOUNT";
+    case OP_OUTPUTSCRIPT           : return "OP_OUTPUTSCRIPT";
     case OP_NOP6                   : return "OP_NOP6";
     case OP_NOP7                   : return "OP_NOP7";
     case OP_NOP8                   : return "OP_NOP8";
@@ -321,7 +321,7 @@ static bool IsCanonicalSignature(const valtype &vchSig) {
     return true;
 }
 
-bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, const CTransaction& txTo, unsigned int nIn, int nHashType)
+bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, const CTransaction& txTo, unsigned int nIn, int nHashType, unsigned int flags)
 {
     CAutoBN_CTX pctx;
     CScript::const_iterator pc = script.begin();
@@ -406,8 +406,100 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                 // Control
                 //
                 case OP_NOP:
-                case OP_PERMANENT_LOCK: case OP_NOP2: case OP_NOP3: case OP_NOP4: case OP_NOP5:
+                case OP_PERMANENT_LOCK:
                 case OP_NOP6: case OP_NOP7: case OP_NOP8: case OP_NOP9: case OP_NOP10:
+                break;
+
+                case OP_CHECKLOCKTIMEVERIFY:
+                {
+                    if (!(flags & SCRIPT_VERIFY_COVENANTS))
+                        break;
+                    if (stack.size() < 1)
+                        return false;
+
+                    CBigNum nLockTime(stacktop(-1));
+                    if (nLockTime < 0)
+                        return false;
+
+                    unsigned long nTxLockTime = txTo.nLockTime;
+                    unsigned long nRequired = nLockTime.getulong();
+
+                    bool fBlockTime = (nRequired >= 500000000);
+                    bool fTxBlockTime = (nTxLockTime >= 500000000);
+                    if (fBlockTime != fTxBlockTime)
+                        return false;
+
+                    if (nRequired > nTxLockTime)
+                        return false;
+
+                    if (txTo.vin[nIn].nSequence == std::numeric_limits<unsigned int>::max())
+                        return false;
+                }
+                break;
+
+                case OP_CHECKSIGFROMSTACKVERIFY:
+                {
+                    if (!(flags & SCRIPT_VERIFY_COVENANTS))
+                        break;
+                    if (stack.size() < 3)
+                        return false;
+
+                    valtype& vchSig    = stacktop(-3);
+                    valtype& vchMsg    = stacktop(-2);
+                    valtype& vchPubKey = stacktop(-1);
+
+                    uint256 msgHash = Hash(vchMsg.begin(), vchMsg.end());
+
+                    CKey key;
+                    if (!key.SetPubKey(vchPubKey))
+                        return false;
+
+                    bool fSuccess = key.Verify(msgHash, vchSig);
+
+                    popstack(stack);
+                    popstack(stack);
+                    popstack(stack);
+
+                    if (!fSuccess)
+                        return false;
+                }
+                break;
+
+                case OP_OUTPUTAMOUNT:
+                {
+                    if (!(flags & SCRIPT_VERIFY_COVENANTS))
+                        break;
+                    if (stack.size() < 1)
+                        return false;
+
+                    int nOutput = CastToBigNum(stacktop(-1)).getint();
+                    popstack(stack);
+
+                    if (nOutput < 0 || nOutput >= (int)txTo.vout.size())
+                        return false;
+
+                    CBigNum bnAmount(txTo.vout[nOutput].nValue);
+                    stack.push_back(bnAmount.getvch());
+                }
+                break;
+
+                case OP_OUTPUTSCRIPT:
+                {
+                    if (!(flags & SCRIPT_VERIFY_COVENANTS))
+                        break;
+                    if (stack.size() < 1)
+                        return false;
+
+                    int nOutput = CastToBigNum(stacktop(-1)).getint();
+                    popstack(stack);
+
+                    if (nOutput < 0 || nOutput >= (int)txTo.vout.size())
+                        return false;
+
+                    const CScript& scriptPubKey = txTo.vout[nOutput].scriptPubKey;
+                    valtype vchScript(scriptPubKey.begin(), scriptPubKey.end());
+                    stack.push_back(vchScript);
+                }
                 break;
 
                 case OP_IF:
@@ -1664,15 +1756,15 @@ bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, vecto
 }
 
 bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const CTransaction& txTo, unsigned int nIn,
-                  int nHashType)
+                  int nHashType, unsigned int flags)
 {
     vector<vector<unsigned char> > stack, stackCopy;
-    if (!EvalScript(stack, scriptSig, txTo, nIn, nHashType))
+    if (!EvalScript(stack, scriptSig, txTo, nIn, nHashType, flags))
         return false;
 
     stackCopy = stack;
 
-    if (!EvalScript(stack, scriptPubKey, txTo, nIn, nHashType))
+    if (!EvalScript(stack, scriptPubKey, txTo, nIn, nHashType, flags))
         return false;
     if (stack.empty())
         return false;
@@ -1690,7 +1782,7 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
         CScript pubKey2(pubKeySerialized.begin(), pubKeySerialized.end());
         popstack(stackCopy);
 
-        if (!EvalScript(stackCopy, pubKey2, txTo, nIn, nHashType))
+        if (!EvalScript(stackCopy, pubKey2, txTo, nIn, nHashType, flags))
             return false;
         if (stackCopy.empty())
             return false;
@@ -1747,7 +1839,7 @@ bool SignSignature(const CKeyStore &keystore, const CTransaction& txFrom, CTrans
     return SignSignature(keystore, txout.scriptPubKey, txTo, nIn, nHashType);
 }
 
-bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsigned int nIn, int nHashType)
+bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsigned int nIn, int nHashType, unsigned int flags)
 {
     assert(nIn < txTo.vin.size());
     const CTxIn& txin = txTo.vin[nIn];
@@ -1758,7 +1850,7 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
     if (txin.prevout.hash != txFrom.GetHash())
         return false;
 
-    return VerifyScript(txin.scriptSig, txout.scriptPubKey, txTo, nIn, nHashType);
+    return VerifyScript(txin.scriptSig, txout.scriptPubKey, txTo, nIn, nHashType, flags);
 }
 
 static CScript PushAll(const vector<valtype>& values)
