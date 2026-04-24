@@ -3,6 +3,10 @@ name = "torus-bridge-script"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+cuda = ["sp1-sdk/cuda"]
+network = ["sp1-sdk/network"]
+
 [dependencies]
 sp1-sdk = { version = "6", features = ["blocking"] }
 torus-kernel = { path = "../crates/torus-kernel" }

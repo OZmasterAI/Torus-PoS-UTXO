@@ -6,3 +6,9 @@ via_ir = true
 remappings = [
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"
 ]
+
+fs_permissions = [{ access = "read", path = "./" }]
+
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+bsc_testnet = "https://data-seed-prebsc-1-s1.binance.org:8545"

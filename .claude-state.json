@@ -1,18 +1,22 @@
 {
-  "session_count": 1,
-  "feature": "permanent-staking",
+  "session_count": 4,
+  "feature": "zk-bridge",
   "framework_version": "v2.8.0",
-  "what_was_done": "Cloned torus-core, implemented permanent locked staking (OP_PERMANENT_LOCK, consensus, kernel, wallet, RPC, Qt GUI), fixed OpenSSL/glibc compat, built successfully, added ZK bridge research doc",
+  "what_was_done": "Full ZK circuit (kernel+Merkle), benchmarked (56k cycles), SP1Verifier contract, deployed ThresholdVerifier+WrappedTRS to BSC testnet, 1000 wTRS minted",
   "known_issues": [
     "Build requires USE_UPNP=- flag (miniupnpc not installed)",
     "Phase 8 (unit tests) not yet written",
-    "Qt GUI not build-tested (only daemon build verified)"
+    "Qt GUI not build-tested (only daemon build verified)",
+    "Groth16 proving needs SP1 Prover Network API key or CUDA GPU"
   ],
   "next_steps": [
-    "ZK-proof bridge PoC: evaluate SP1 vs Risc0, port CheckStakeKernelHash to Rust (see doc/zk-bridge-research.md)",
-    "Write unit tests for permanent staking (IsPermanentStakeScript, GetWeight with flag, consensus rules)",
+    "Unit tests for permanent staking (IsPermanentStakeScript, GetWeight, consensus rules)",
     "Build and test Qt wallet (qmake + make)",
-    "Consider threshold bridge (option 2) as interim shippable solution",
-    "Set activation height for mainnet (currently 450000, verify against current block height)"
-  ]
+    "Torus-core regtest node for real deposit testing",
+    "SP1Verifier integration — Groth16 wrapping (needs API key)",
+    "Relayer service — watch torus-core deposits, submit ZK proofs to BSC"
+  ],
+  "project_name": "old-chain",
+  "last_updated": "2026-04-23T15:28:00",
+  "dag_branch": "main"
 }
