@@ -1,22 +1,21 @@
 {
-  "session_count": 11,
+  "session_count": 13,
   "feature": "zk-bridge",
   "framework_version": "v2.8.0",
-  "what_was_done": "Built relayer crate (5 modules, compiles clean). Designed full withdrawal architecture: covenants on torus-core + BSC BridgeController slashing. Created 4 design docs + TDD writing plan (10 tasks). Analyzed script.cpp opcodes.",
+  "what_was_done": "Implemented 4 covenant opcodes (CLTV, CHECKSIGFROMSTACKVERIFY, OUTPUTAMOUNT, OUTPUTSCRIPT) in script engine. Added activation height guard (block 500000). Built createcovenantaddress RPC. BridgeController.sol with 26/26 tests. Wrote covenant unit tests. Planned withdrawal pipeline (9 tasks).",
   "known_issues": [
     "Build requires USE_UPNP=- flag (miniupnpc not installed)",
-    "torus-core script engine is Bitcoin 0.6-era — no CLTV, no CSV, no covenants",
     "Qt GUI not build-tested (only daemon build verified)",
-    "Torus-core has no regtest mode (only mainnet/testnet)"
+    "Torus-core has no regtest mode (only mainnet/testnet)",
+    "Test binary (test_torus) has no Makefile target — tests written but not compiled"
   ],
   "next_steps": [
-    "Implement covenant opcodes (CLTV, CHECKSIGFROMSTACK, OUTPUTAMOUNT, OUTPUTSCRIPT) — see docs/plans/covenant-opcodes-impl.md",
-    "Build BridgeController.sol — operator staking, withdrawal tracking, slashing",
-    "Run torus-core testnet node for real deposit testing",
-    "Add withdrawal flow to relayer (watch BSC burns, coordinate co-signing, submit reverse ZK proof)",
+    "Implement withdrawal pipeline (9 tasks) — see docs/plans/withdrawal-pipeline-impl.md",
+    "Task 10: Deploy BridgeController to Sepolia (deploy script ready, needs keys)",
+    "Run torus-core testnet node for real covenant testing",
     "Production deployment on BSC mainnet"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-04-24T07:40:00",
+  "last_updated": "2026-04-24T09:53:00",
   "dag_branch": "main"
 }
