@@ -561,11 +561,35 @@ bool ClientAllowed(const boost::asio::ip::address& address)
       && (address.to_v4().to_ulong() & 0xff000000) == 0x7f000000))
         return true;
 
-    const string strAddress = address.to_string();
     const vector<string>& vAllow = mapMultiArgs["-rpcallowip"];
-    for (string strAllow : vAllow)
-        if (WildcardMatch(strAddress, strAllow))
-            return true;
+    for (const string& strAllow : vAllow)
+    {
+        // Support CIDR notation (e.g. "192.168.1.0/24")
+        size_t slash = strAllow.find('/');
+        if (slash != string::npos && address.is_v4())
+        {
+            try {
+                asio::ip::address_v4 network = asio::ip::address_v4::from_string(strAllow.substr(0, slash));
+                int bits = atoi(strAllow.substr(slash + 1).c_str());
+                if (bits >= 0 && bits <= 32)
+                {
+                    unsigned long mask = bits == 0 ? 0 : (~0UL << (32 - bits));
+                    if ((address.to_v4().to_ulong() & mask) == (network.to_ulong() & mask))
+                        return true;
+                }
+            } catch (...) {}
+        }
+        else
+        {
+            // Exact match fallback
+            const string strAddress = address.to_string();
+            if (strAddress == strAllow)
+                return true;
+            // Preserve legacy wildcard matching for backward compatibility
+            if (WildcardMatch(strAddress, strAllow))
+                return true;
+        }
+    }
     return false;
 }
 
@@ -1047,11 +1071,10 @@ void ThreadRPCServer3(void* parg)
         if (!HTTPAuthorized(mapHeaders))
         {
             printf("ThreadRPCServer incorrect password attempt from %s\n", conn->peer_address_to_string().c_str());
-            /* Deter brute-forcing short passwords.
+            /* Deter brute-forcing passwords.
                If this results in a DOS the user really
                shouldn't have their RPC port exposed.*/
-            if (mapArgs["-rpcpassword"].size() < 20)
-                MilliSleep(250);
+            MilliSleep(250);
 
             conn->stream() << HTTPReply(HTTP_UNAUTHORIZED, "", false) << std::flush;
             break;

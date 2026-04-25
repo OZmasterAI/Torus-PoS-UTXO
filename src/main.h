@@ -59,12 +59,12 @@ static const uint256 hashGenesisBlockTestNet("0x000005a39de532e9f2546ad8c954a21f
 
 inline int64_t PastDrift(int64_t nTime)
 {
-    return nTime - 10 * 60; // up to 10 min
+    return nTime - 3 * 60;
 }
 
 inline int64_t FutureDrift(int64_t nTime)
 {
-    return nTime + 10 * 60; // up to 10 min
+    return nTime + 3 * 60;
 }
 
 extern CScript COINBASE_FLAGS;

@@ -30,6 +30,11 @@ namespace boost {
 #include <openssl/rand.h>
 #include <stdarg.h>
 
+#ifndef WIN32
+#include <unistd.h>
+#include <sys/wait.h>
+#endif
+
 #ifdef WIN32
 #ifdef _MSC_VER
 #pragma warning(disable:4786)
@@ -1315,9 +1320,29 @@ boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate)
 
 void runCommand(std::string strCommand)
 {
+#ifndef WIN32
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+        execl("/bin/sh", "sh", "-c", strCommand.c_str(), (char*)NULL);
+        _exit(127);
+    }
+    else if (pid > 0)
+    {
+        int status;
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+            printf("runCommand error: %s returned %d\n", strCommand.c_str(), WEXITSTATUS(status));
+    }
+    else
+    {
+        printf("runCommand error: fork() failed for %s\n", strCommand.c_str());
+    }
+#else
     int nErr = ::system(strCommand.c_str());
     if (nErr)
         printf("runCommand error: system(%s) returned %d\n", strCommand.c_str(), nErr);
+#endif
 }
 
 void RenameThread(const char* name)

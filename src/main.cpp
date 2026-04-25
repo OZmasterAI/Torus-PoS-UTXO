@@ -1264,7 +1264,10 @@ int64_t CTransaction::GetValueIn(const MapPrevTx& inputs) const
     int64_t nResult = 0;
     for (unsigned int i = 0; i < vin.size(); i++)
     {
-        nResult += GetOutputFor(vin[i], inputs).nValue;
+        int64_t nValueIn = GetOutputFor(vin[i], inputs).nValue;
+        if (!MoneyRange(nValueIn) || !MoneyRange(nResult + nValueIn))
+            throw std::runtime_error("CTransaction::GetValueIn() : value out of range");
+        nResult += nValueIn;
     }
     return nResult;
 
@@ -2397,6 +2400,14 @@ bool CBlock::CheckBlockSignature() const
             return false;
         return key.Verify(GetHash(), vchBlockSig);
     }
+    else if (whichType == TX_PUBKEYHASH)
+    {
+        CKeyID keyID = CKeyID(uint160(vSolutions[0]));
+        CKey key;
+        if (!key.SetCompactSignature(GetHash(), vchBlockSig))
+            return false;
+        return key.GetPubKey().GetID() == keyID;
+    }
 
     return false;
 }
@@ -2825,7 +2836,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         if (!vRecv.empty())
             vRecv >> addrFrom >> nNonce;
         if (!vRecv.empty())
+        {
             vRecv >> pfrom->strSubVer;
+            if (pfrom->strSubVer.size() > 256)
+                pfrom->strSubVer.resize(256);
+        }
         if (!vRecv.empty())
             vRecv >> pfrom->nStartingHeight;
 
@@ -3259,7 +3274,19 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         }
         else if (fMissingInputs)
         {
-            AddOrphanTx(tx);
+            // Per-peer orphan rate limit: max 100 orphans per peer
+            static map<CService, unsigned int> mapOrphanCountByPeer;
+            CService peerAddr = pfrom->addr;
+            if (mapOrphanCountByPeer[peerAddr] >= 100)
+            {
+                printf("peer %s exceeded orphan tx limit\n", peerAddr.ToString().c_str());
+                pfrom->Misbehaving(1);
+            }
+            else
+            {
+                if (AddOrphanTx(tx))
+                    mapOrphanCountByPeer[peerAddr]++;
+            }
 
             // DoS prevention: do not allow mapOrphanTransactions to grow unbounded
             unsigned int nEvicted = LimitOrphanTxSize(MAX_ORPHAN_TRANSACTIONS);

@@ -98,6 +98,10 @@ public:
     {
         OPENSSL_cleanse(&chKey, sizeof chKey);
         OPENSSL_cleanse(&chIV, sizeof chIV);
+        // Prevent compiler from eliding the cleanse as dead store under LTO
+        volatile unsigned char *p;
+        p = chKey; (void)*p;
+        p = chIV; (void)*p;
         fKeySet = false;
     }
 

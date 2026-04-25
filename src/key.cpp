@@ -293,9 +293,9 @@ CSecret CKey::GetSecret(bool &fCompressed) const
     CSecret vchRet;
     vchRet.resize(32);
     const BIGNUM *bn = EC_KEY_get0_private_key(pkey);
-    int nBytes = BN_num_bytes(bn);
     if (bn == NULL)
         throw key_error("CKey::GetSecret() : EC_KEY_get0_private_key failed");
+    int nBytes = BN_num_bytes(bn);
     int n=BN_bn2bin(bn,&vchRet[32 - nBytes]);
     if (n != nBytes)
         throw key_error("CKey::GetSecret(): BN_bn2bin failed");

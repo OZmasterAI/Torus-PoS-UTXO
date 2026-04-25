@@ -61,21 +61,21 @@ bool CastToBool(const valtype& vch)
 //
 void MakeSameSize(valtype& vch1, valtype& vch2)
 {
-    // Lengthen the shorter one
+    // Lengthen the shorter one, preserving the sign bit
     if (vch1.size() < vch2.size())
-        // PATCH:
-        // +unsigned char msb = vch1[vch1.size()-1];
-        // +vch1[vch1.size()-1] &= 0x7f;
-        //  vch1.resize(vch2.size(), 0);
-        // +vch1[vch1.size()-1] = msb;
+    {
+        unsigned char msb = vch1[vch1.size()-1];
+        vch1[vch1.size()-1] &= 0x7f;
         vch1.resize(vch2.size(), 0);
+        vch1[vch1.size()-1] = msb;
+    }
     if (vch2.size() < vch1.size())
-        // PATCH:
-        // +unsigned char msb = vch2[vch2.size()-1];
-        // +vch2[vch2.size()-1] &= 0x7f;
-        //  vch2.resize(vch1.size(), 0);
-        // +vch2[vch2.size()-1] = msb;
+    {
+        unsigned char msb = vch2[vch2.size()-1];
+        vch2[vch2.size()-1] &= 0x7f;
         vch2.resize(vch1.size(), 0);
+        vch2[vch1.size()-1] = msb;
+    }
 }
 
 
