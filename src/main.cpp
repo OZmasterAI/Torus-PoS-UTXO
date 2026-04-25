@@ -1344,10 +1344,6 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             if (!txindex.vSpent[prevout.n].IsNull())
                 return fMiner ? false : error("ConnectInputs() : %s prev tx already used at %s", GetHash().ToString().substr(0,10).c_str(), txindex.vSpent[prevout.n].ToString().c_str());
 
-            // Skip ECDSA signature verification when connecting blocks (fBlock=true)
-            // before the last blockchain checkpoint. This is safe because block merkle hashes are
-            // still computed and checked, and any change will be caught at the next checkpoint.
-            if (!(fBlock && (nBestHeight < Checkpoints::GetTotalBlocksEstimate())))
             {
                 unsigned int nScriptFlags = SCRIPT_VERIFY_NONE;
                 if (pindexBlock->nHeight >= COVENANT_ACTIVATION_HEIGHT)
@@ -1982,8 +1978,8 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const u
         return error("AddToBlockIndex() : ComputeNextStakeModifier() failed");
     pindexNew->SetStakeModifier(nStakeModifier, fGeneratedStakeModifier);
     pindexNew->nStakeModifierChecksum = GetStakeModifierChecksum(pindexNew);
-    //if (!CheckStakeModifierCheckpoints(pindexNew->nHeight, pindexNew->nStakeModifierChecksum))
-        //return error("AddToBlockIndex() : Rejected by stake modifier checkpoint height=%d, modifier=0x%016" PRIx64, pindexNew->nHeight, nStakeModifier);
+    if (!CheckStakeModifierCheckpoints(pindexNew->nHeight, pindexNew->nStakeModifierChecksum))
+        return error("AddToBlockIndex() : Rejected by stake modifier checkpoint height=%d, modifier=0x%016" PRIx64, pindexNew->nHeight, nStakeModifier);
 
     // Add to mapBlockIndex
     map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;

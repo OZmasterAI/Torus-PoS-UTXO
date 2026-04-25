@@ -9,7 +9,7 @@
 #include "serialize.h"
 
 const unsigned int WALLET_CRYPTO_KEY_SIZE = 32;
-const unsigned int WALLET_CRYPTO_SALT_SIZE = 8;
+const unsigned int WALLET_CRYPTO_SALT_SIZE = 16;
 
 /*
 Private key encryption is done based on a CMasterKey,

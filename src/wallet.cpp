@@ -126,6 +126,11 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase)
         LOCK(cs_wallet);
         for (const MasterKeyMap::value_type& pMasterKey : mapMasterKeys)
         {
+            if (pMasterKey.second.nDeriveIterations < 25000)
+            {
+                printf("ERROR: CWallet::Unlock() : wallet.dat nDeriveIterations=%u is below minimum 25000, rejecting\n", pMasterKey.second.nDeriveIterations);
+                return false;
+            }
             if(!crypter.SetKeyFromPassphrase(strWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
                 return false;
             if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
@@ -149,6 +154,11 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
         CKeyingMaterial vMasterKey;
         for (MasterKeyMap::value_type& pMasterKey : mapMasterKeys)
         {
+            if (pMasterKey.second.nDeriveIterations < 25000)
+            {
+                printf("ERROR: CWallet::ChangeWalletPassphrase() : wallet.dat nDeriveIterations=%u is below minimum 25000, rejecting\n", pMasterKey.second.nDeriveIterations);
+                return false;
+            }
             if(!crypter.SetKeyFromPassphrase(strOldWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
                 return false;
             if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))

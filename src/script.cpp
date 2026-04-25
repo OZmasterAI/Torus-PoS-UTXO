@@ -1229,7 +1229,9 @@ uint256 SignatureHash(CScript scriptCode, const CTransaction& txTo, unsigned int
         if (nOut >= txTmp.vout.size())
         {
             printf("ERROR: SignatureHash() : nOut=%d out of range\n", nOut);
-            return 1;
+            // CVE-2012-2459: returning 1 allows trivial signature forgery.
+            // Return a hash that no valid ECDSA signature can match.
+            return uint256("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef");
         }
         txTmp.vout.resize(nOut+1);
         for (unsigned int i = 0; i < nOut; i++)
