@@ -1,5 +1,6 @@
 use alloy::primitives::{Address, FixedBytes};
 use eyre::{eyre, Result};
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::time::Duration;
 use tracing::{error, info, warn};
@@ -110,7 +111,10 @@ async fn main() -> Result<()> {
     info!("Connected to torus-core at height {}", height);
 
     info!("Entering main loop...");
+    let mut locked_utxos: HashSet<String> = HashSet::new();
     loop {
+        locked_utxos.clear();
+
         match process_cycle(&rpc, &prover, &submitter, &mut state, &config).await {
             Ok(0) => {}
             Ok(n) => info!("Cycle complete: {} deposits processed", n),
@@ -125,6 +129,7 @@ async fn main() -> Result<()> {
             &auth_store,
             &mut state,
             &config,
+            &mut locked_utxos,
         )
         .await
         {
@@ -230,6 +235,7 @@ async fn process_withdrawal_cycle(
     auth_store: &api::WithdrawalAuthStore,
     state: &mut RelayerState,
     config: &Config,
+    locked_utxos: &mut HashSet<String>,
 ) -> Result<usize> {
     let (events, last_block) = withdrawal_watcher.watch(state.last_withdrawal_block).await?;
     state.last_withdrawal_block = last_block + 1;
@@ -265,6 +271,14 @@ async fn process_withdrawal_cycle(
 
         let utxos = rpc.list_unspent(&config.bridge_address).await?;
         let utxo_data = utxos.iter().find(|u| {
+            let outpoint = format!(
+                "{}:{}",
+                u["txid"].as_str().unwrap_or_default(),
+                u["vout"].as_u64().unwrap_or(0)
+            );
+            if locked_utxos.contains(&outpoint) {
+                return false;
+            }
             let amt = (u["amount"].as_f64().unwrap_or(0.0) * 1e8) as u64;
             amt >= event.amount
         });
@@ -276,6 +290,13 @@ async fn process_withdrawal_cycle(
                 continue;
             }
         };
+
+        let outpoint = format!(
+            "{}:{}",
+            utxo_data["txid"].as_str().unwrap_or_default(),
+            utxo_data["vout"].as_u64().unwrap_or(0)
+        );
+        locked_utxos.insert(outpoint);
 
         let utxo = covenant_tx::CovenantUtxo {
             txid: utxo_data["txid"].as_str().unwrap_or_default().to_string(),
