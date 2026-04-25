@@ -91,6 +91,8 @@ contract WrappedTRS is ERC20, Ownable2Step, Pausable {
     /// @notice Burn wrapped tokens and request withdrawal to torus-core.
     /// @param amount       Amount of wTRS to burn
     /// @param torusAddress Torus-core destination address (raw bytes)
+    error WithdrawalAlreadyProcessed();
+
     function withdraw(uint256 amount, bytes calldata torusAddress) external whenNotPaused {
         if (amount == 0) revert ZeroAmount();
 
@@ -98,8 +100,9 @@ contract WrappedTRS is ERC20, Ownable2Step, Pausable {
             abi.encodePacked(msg.sender, amount, torusAddress, block.number)
         );
 
-        _burn(msg.sender, amount);
+        if (processedWithdrawals[withdrawalId]) revert WithdrawalAlreadyProcessed();
         processedWithdrawals[withdrawalId] = true;
+        _burn(msg.sender, amount);
 
         emit WithdrawalRequested(withdrawalId, msg.sender, amount, torusAddress);
     }
@@ -138,10 +141,24 @@ contract ThresholdVerifier is IVerifier {
     address[] public signers;
     uint256 public threshold;
 
+    bytes32 public immutable DOMAIN_SEPARATOR;
+    bytes32 private constant DEPOSIT_TYPEHASH = keccak256(
+        "VerifyDeposit(bytes32 blockHash,bytes32 txHash,uint256 amount,address recipient)"
+    );
+
     constructor(address[] memory _signers, uint256 _threshold) {
         require(_threshold > 0 && _threshold <= _signers.length, "invalid threshold");
         signers = _signers;
         threshold = _threshold;
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256("ThresholdVerifier"),
+                keccak256("1"),
+                block.chainid,
+                address(this)
+            )
+        );
     }
 
     function verifyDeposit(
@@ -151,8 +168,11 @@ contract ThresholdVerifier is IVerifier {
         uint256 amount,
         address recipient
     ) external view override returns (bool) {
+        bytes32 structHash = keccak256(
+            abi.encode(DEPOSIT_TYPEHASH, blockHash, txHash, amount, recipient)
+        );
         bytes32 message = keccak256(
-            abi.encodePacked(blockHash, txHash, amount, recipient)
+            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
         );
 
         // Decode proof as concatenated 65-byte ECDSA signatures
@@ -160,10 +180,21 @@ contract ThresholdVerifier is IVerifier {
         if (sigCount < threshold) return false;
 
         uint256 validSigs = 0;
+        address[] memory seen = new address[](sigCount);
+        uint256 seenCount = 0;
         for (uint256 i = 0; i < sigCount; i++) {
             bytes memory sig = proof[i * 65:(i + 1) * 65];
             address recovered = recoverSigner(message, sig);
+            if (recovered == address(0)) continue;
+
+            bool duplicate = false;
+            for (uint256 j = 0; j < seenCount; j++) {
+                if (seen[j] == recovered) { duplicate = true; break; }
+            }
+            if (duplicate) continue;
+
             if (isValidSigner(recovered)) {
+                seen[seenCount++] = recovered;
                 validSigs++;
             }
         }
@@ -224,16 +255,19 @@ interface ISP1VerifierGateway {
 contract SP1Verifier is IVerifier {
     ISP1VerifierGateway public immutable gateway;
     bytes32 public immutable programVKey;
+    bytes32 public immutable posTargetHash;
 
     error ProofTooShort();
     error BlockHashMismatch();
+    error KernelHashExceedsTarget();
     error TxHashMismatch();
     error AmountMismatch();
     error RecipientMismatch();
 
-    constructor(address _gateway, bytes32 _vkey) {
+    constructor(address _gateway, bytes32 _vkey, bytes32 _posTarget) {
         gateway = ISP1VerifierGateway(_gateway);
         programVKey = _vkey;
+        posTargetHash = _posTarget;
     }
 
     function verifyDeposit(
@@ -246,18 +280,21 @@ contract SP1Verifier is IVerifier {
         if (proof.length <= 160) revert ProofTooShort();
 
         bytes32 pBlockHash;
+        bytes32 pKernelHash;
         bytes32 pTxHash;
         uint256 pAmount;
         uint256 recipientWord;
 
         assembly {
             pBlockHash := calldataload(proof.offset)
+            pKernelHash := calldataload(add(proof.offset, 32))
             pTxHash := calldataload(add(proof.offset, 64))
             pAmount := calldataload(add(proof.offset, 96))
             recipientWord := calldataload(add(proof.offset, 128))
         }
 
         if (pBlockHash != blockHash) revert BlockHashMismatch();
+        if (uint256(pKernelHash) > uint256(posTargetHash)) revert KernelHashExceedsTarget();
         if (pTxHash != txHash) revert TxHashMismatch();
         if (pAmount != amount) revert AmountMismatch();
         if (address(uint160(recipientWord)) != recipient) revert RecipientMismatch();

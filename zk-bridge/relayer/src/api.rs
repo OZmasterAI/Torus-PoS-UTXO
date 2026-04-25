@@ -8,7 +8,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{info, warn};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WithdrawalAuth {
@@ -25,6 +25,40 @@ pub fn new_auth_store() -> WithdrawalAuthStore {
     Arc::new(RwLock::new(HashMap::new()))
 }
 
+fn verify_withdrawal_signature(auth: &WithdrawalAuth) -> bool {
+    let message = format!(
+        "{}:{}:{}",
+        auth.withdrawal_id, auth.amount, auth.torus_address
+    );
+
+    let sig_bytes = match hex::decode(auth.torus_signature.trim_start_matches("0x")) {
+        Ok(b) => b,
+        Err(_) => return false,
+    };
+    let pubkey_bytes = match hex::decode(auth.torus_pubkey.trim_start_matches("0x")) {
+        Ok(b) => b,
+        Err(_) => return false,
+    };
+
+    match secp256k1::Secp256k1::verification_only()
+        .verify_ecdsa(
+            &secp256k1::Message::from_digest(
+                bitcoin_hashes::sha256d::Hash::hash(message.as_bytes()).to_byte_array(),
+            ),
+            &match secp256k1::ecdsa::Signature::from_compact(&sig_bytes) {
+                Ok(s) => s,
+                Err(_) => return false,
+            },
+            &match secp256k1::PublicKey::from_slice(&pubkey_bytes) {
+                Ok(k) => k,
+                Err(_) => return false,
+            },
+        ) {
+        Ok(()) => true,
+        Err(_) => false,
+    }
+}
+
 async fn post_withdrawal_auth(
     State(store): State<WithdrawalAuthStore>,
     Json(auth): Json<WithdrawalAuth>,
@@ -34,6 +68,11 @@ async fn post_withdrawal_auth(
         || auth.torus_pubkey.is_empty()
     {
         return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if !verify_withdrawal_signature(&auth) {
+        warn!("withdrawal auth rejected: invalid signature for {}", auth.withdrawal_id);
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
     let withdrawal_id = auth.withdrawal_id.clone();

@@ -5,11 +5,9 @@
 // proven block hash and deposit info as public outputs.
 //
 // To build: `cargo prove build` (requires SP1 toolchain)
-//
-// Uncomment the sp1_zkvm lines below once the SP1 SDK is installed.
 
-// #![no_main]
-// sp1_zkvm::entrypoint!(main);
+#![no_main]
+sp1_zkvm::entrypoint!(main);
 
 use torus_kernel::{
     BlockHeader, StakeKernelInput,
@@ -27,48 +25,37 @@ pub struct BridgeProofOutput {
 }
 
 fn main() {
-    // --- In SP1, inputs are read from the host via sp1_zkvm::io::read() ---
-    // let headers: Vec<BlockHeader> = sp1_zkvm::io::read();
-    // let kernel_input: StakeKernelInput = sp1_zkvm::io::read();
-    // let deposit_tx_hash: [u8; 32] = sp1_zkvm::io::read();
-    // let merkle_proof: Vec<([u8; 32], bool)> = sp1_zkvm::io::read();
-    // let deposit_amount: u64 = sp1_zkvm::io::read();
-    // let recipient: [u8; 20] = sp1_zkvm::io::read();
+    let headers: Vec<BlockHeader> = sp1_zkvm::io::read();
+    let kernel_input: StakeKernelInput = sp1_zkvm::io::read();
+    let deposit_tx_hash: [u8; 32] = sp1_zkvm::io::read();
+    let merkle_proof: Vec<([u8; 32], bool)> = sp1_zkvm::io::read();
+    let deposit_amount: u64 = sp1_zkvm::io::read();
+    let recipient: [u8; 20] = sp1_zkvm::io::read();
 
-    // --- Placeholder for native testing ---
-    println!("torus-bridge-program: SP1 guest program skeleton");
-    println!("Install SP1 toolchain and uncomment sp1_zkvm lines to build as ZK program.");
-    println!();
-    println!("The program verifies:");
-    println!("  1. PoS kernel hash meets difficulty target");
-    println!("  2. Block headers form a valid chain");
-    println!("  3. Deposit transaction is included in the proven block");
-    println!();
-    println!("See torus_kernel crate for the core verification logic.");
-
-    // --- Verification steps (shown as pseudocode until SP1 is wired up) ---
-    //
     // Step 1: Verify header chain continuity
-    // assert!(verify_header_chain(&headers), "invalid header chain");
-    //
+    assert!(verify_header_chain(&headers), "invalid header chain");
+
     // Step 2: Verify the PoS kernel hash for the deposit block
-    // let result = check_stake_kernel_hash(&kernel_input);
-    // assert!(result.meets_target, "stake kernel hash does not meet target");
-    //
+    let result = check_stake_kernel_hash(&kernel_input);
+    assert!(result.meets_target, "stake kernel hash does not meet target");
+
     // Step 3: Verify deposit tx is in the block's merkle tree
-    // let deposit_block = headers.last().unwrap();
-    // assert!(
-    //     torus_kernel::verify_merkle_proof(
-    //         &deposit_tx_hash,
-    //         &merkle_proof,
-    //         &deposit_block.hash_merkle_root,
-    //     ),
-    //     "deposit tx not in merkle tree"
-    // );
-    //
+    let deposit_block = headers.last().unwrap();
+    assert!(
+        torus_kernel::verify_merkle_proof(
+            &deposit_tx_hash,
+            &merkle_proof,
+            &deposit_block.hash_merkle_root,
+        ),
+        "deposit tx not in merkle tree"
+    );
+
     // Step 4: Commit public outputs
-    // let block_hash = hash_block_header(deposit_block);
-    // sp1_zkvm::io::commit(&block_hash);
-    // sp1_zkvm::io::commit(&deposit_amount);
-    // sp1_zkvm::io::commit(&recipient);
+    let block_hash = hash_block_header(deposit_block);
+    let kernel_hash = result.kernel_hash;
+    sp1_zkvm::io::commit(&block_hash);
+    sp1_zkvm::io::commit(&kernel_hash);
+    sp1_zkvm::io::commit(&deposit_tx_hash);
+    sp1_zkvm::io::commit(&deposit_amount);
+    sp1_zkvm::io::commit(&recipient);
 }
