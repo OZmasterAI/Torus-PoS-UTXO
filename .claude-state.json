@@ -1,8 +1,8 @@
 {
-  "session_count": 20,
-  "feature": "qt-wallet-staking",
+  "session_count": 23,
+  "feature": "chain-swap-genesis",
   "framework_version": "v2.8.0",
-  "what_was_done": "Built TORUS-Qt wallet from source, fixed Boost placeholder errors, added Stake tab for permanent staking, added auto-combine for permanent stake UTXOs in CreateCoinStake",
+  "what_was_done": "Designed total chain swap strategy: new genesis block with compiled-in UTXO snapshot. Created 5-task implementation plan (dumputxoset RPC, remove staking height gates, genesis builder, mine genesis, e2e wallet test). Plan files written to docs/plans/ and PRPs/.",
   "known_issues": [
     "Torus-core has no regtest mode (only mainnet/testnet)",
     "Test binary (test_torus) has no Makefile target",
@@ -10,13 +10,12 @@
     "build/ and TORUS-Qt binary not in .gitignore"
   ],
   "next_steps": [
-    "Test Stake tab via xrdp — verify lock flow end-to-end",
-    "Add .gitignore for build artifacts (build/, TORUS-Qt, .qmake.stash, qrc_bitcoin.cpp)",
-    "Integration test with live torus-core node + Sepolia testnet",
-    "Full round-trip test (deposit + withdrawal)",
-    "Switch WrappedTRS verifier from ThresholdVerifier to SP1Verifier"
+    "Implement Task 1+2 in parallel: dumputxoset RPC + remove permanent staking height gates",
+    "Implement Task 3: genesis block with compiled-in UTXO snapshot (genesis_utxos.h)",
+    "Implement Task 4: mine new genesis, update hashes and checkpoints",
+    "Implement Task 5: end-to-end wallet import verification",
+    "Add .gitignore for build artifacts (build/, TORUS-Qt, .qmake.stash, qrc_bitcoin.cpp)"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-04-24T15:38:00",
-  "dag_branch": "main"
+  "last_updated": "2026-04-25T19:41:00"
 }
