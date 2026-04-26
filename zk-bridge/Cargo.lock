@@ -7843,11 +7843,13 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "axum",
+ "bitcoin_hashes",
  "dotenvy",
  "eyre",
  "hex",
  "k256",
  "reqwest 0.12.28",
+ "secp256k1",
  "serde",
  "serde_json",
  "sp1-sdk",

@@ -311,6 +311,7 @@ async fn process_withdrawal_cycle(
         let withdrawal_params = covenant_tx::WithdrawalParams {
             recipient_addr_hash: event.torus_address,
             amount: event.amount,
+            evm_requester: event.requester.0 .0,
         };
 
         let canonical_msg = format!(

@@ -1,33 +1,29 @@
 {
-  "session_count": 35,
+  "session_count": 37,
   "feature": "chain-swap-genesis",
   "framework_version": "v2.8.0",
-  "what_was_done": "Fixed 8 zk-bridge vulns (b141952): CRIT-2 burn/refund, CRIT-3 CBigNum amount encoding, CRIT-4 mode byte in ZK outputs, CRIT-5 BobAuth binding, HIGH-1 EIP-712, HIGH-2 dedup signers, HIGH-3 minWithdrawal, HIGH-4 API auth, HIGH-5 verifyWithdrawal. 27 forge tests pass. Restarted stalled sync daemon (flood control disconnects).",
+  "what_was_done": "Completed all 5 chain swap genesis tasks. Bootstrapped node to 835,771. Ran dumputxoset (28,183 UTXOs, 156M TRS). Generated real genesis_utxos.h. Mined new genesis (hash=0x00000e566b84cb7d...). Updated MAX_MONEY 150M->200M, stake modifier checksum, merkle root assert. Fixed GetBlocksToMaturity genesis exemption. E2E wallet import test passed (4,242 TRS). Committed as e39fbb8.",
   "known_issues": [
-    "genesis_utxos.h has placeholder data - needs real dumputxoset output",
-    "Hash constants in main.h still point to old genesis - update after mining",
-    "Stake modifier checksums in kernel.cpp need update after new genesis",
+    "MAX_MONEY set to 200M - needs hard-fork bump before ~2034 (5% annual PoS growth)",
     "Root-level contracts/WrappedTRS.sol diverged from src/ version - consider deleting",
-    "Sync was stalled at 434K due to flood control disconnects - daemon restarted"
+    "Old sync node (/tmp/torus-sync) was stopped for testing - may need restart"
   ],
   "next_steps": [
-    "Check sync height: grep SetBestChain /tmp/torus-sync/debug.log | tail -1 (target 835,771)",
-    "If daemon died: /home/crab/projects/torus-core-dump/src/TORUSd -datadir=/tmp/torus-sync -daemon",
-    "At sync tip: dumputxoset -> convert_utxo_snapshot.py -> real genesis_utxos.h",
-    "Rebuild old-chain, mine new genesis, update main.h hash + kernel.cpp checksums + re-enable asserts",
-    "Task 5: e2e wallet import test",
-    "Fix remaining zk-bridge findings: 7 medium + 7 low + 3 informational"
+    "Restart old sync node if needed: /home/crab/projects/torus-core-dump/src/TORUSd -datadir=/tmp/torus-sync -daemon",
+    "Build and test new chain binary with peers (multi-node test)",
+    "Fix remaining zk-bridge findings: 7 medium + 7 low + 3 informational",
+    "Deploy new genesis to seed nodes for chain swap launch"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-04-26T14:50:00",
+  "last_updated": "2026-04-26T17:55:00",
   "dag_branch": "main",
   "sync_daemon": {
     "binary": "/home/crab/projects/torus-core-dump/src/TORUSd",
     "datadir": "/tmp/torus-sync",
     "target_height": 835771,
-    "last_seen_height": 434728,
-    "status": "restarted after flood control stall at 434K, syncing to 835K",
-    "bootstrap_height": 424889,
+    "last_seen_height": 835771,
+    "status": "fully synced via bootstrap, stopped for new genesis testing",
+    "bootstrap_height": 835771,
     "peers": [
       "207.180.236.165",
       "144.91.72.207",
@@ -36,5 +32,14 @@
       "75.119.141.88",
       "213.190.25.21"
     ]
+  },
+  "genesis": {
+    "hash": "0x00000e566b84cb7d88db5bc6f0afa22ede9afbdd4ba0d0ce60f645e5fd49dff8",
+    "merkle_root": "0x44892330242e0f1e2515ca31116b953b532b40abcca746669f2f227bba54afc9",
+    "nonce": 1671673,
+    "stake_modifier_checksum": "0xfd11f4e7",
+    "utxo_count": 28183,
+    "total_supply": "156271175.48265919",
+    "snapshot_height": 835771
   }
 }

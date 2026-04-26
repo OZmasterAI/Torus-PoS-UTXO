@@ -65,6 +65,7 @@ fn main() {
     let elf: Elf = elf_bytes.as_slice().into();
 
     let mut stdin = SP1Stdin::new();
+    stdin.write(&0u8);
     stdin.write(&header);
     stdin.write(&kernel_input);
     stdin.write(&deposit_tx_hash);

@@ -79,6 +79,7 @@ fn main() {
     let elf: Elf = elf_bytes.as_slice().into();
 
     let mut stdin = SP1Stdin::new();
+    stdin.write(&0u8);
     stdin.write(&header);
     stdin.write(&kernel_input);
     stdin.write(&deposit_tx_hash);
@@ -103,14 +104,15 @@ fn main() {
 
     let pv = public_values.as_slice();
     println!("  Public outputs: {} bytes", pv.len());
-    if pv.len() >= 160 {
-        println!("    Block hash:  {}", hex::encode(&pv[0..32]));
-        println!("    Kernel hash: {}", hex::encode(&pv[32..64]));
-        println!("    TX hash:     {}", hex::encode(&pv[64..96]));
-        let amount_word = &pv[96..128];
+    if pv.len() >= 192 {
+        println!("    Mode:        {}", pv[31]);
+        println!("    Block hash:  {}", hex::encode(&pv[32..64]));
+        println!("    Kernel hash: {}", hex::encode(&pv[64..96]));
+        println!("    TX hash:     {}", hex::encode(&pv[96..128]));
+        let amount_word = &pv[128..160];
         let proven_amount = u64::from_be_bytes(amount_word[24..32].try_into().unwrap());
         println!("    Amount:      {} TRS", proven_amount as f64 / COIN as f64);
-        println!("    Recipient:   0x{}", hex::encode(&pv[140..160]));
+        println!("    Recipient:   0x{}", hex::encode(&pv[172..192]));
     }
 
     // === Phase 2: STARK proof generation ===

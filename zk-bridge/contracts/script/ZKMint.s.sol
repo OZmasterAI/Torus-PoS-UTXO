@@ -29,22 +29,26 @@ contract ZKMint is Script {
         bytes memory proof = vm.readFileBinary("groth16_onchain_proof.bin");
         console.log("\n[2] Proof loaded:", proof.length, "bytes");
 
-        // Public values layout (first 160 bytes of proof):
-        //   [0:32]   blockHash
-        //   [32:64]  kernelHash
-        //   [64:96]  txHash
-        //   [96:128] amount
-        //   [128:160] recipient (left-padded address)
+        // Public values layout (first 192 bytes of proof):
+        //   [0:32]   mode (0 = deposit, 1 = withdrawal)
+        //   [32:64]  blockHash
+        //   [64:96]  kernelHash
+        //   [96:128] txHash
+        //   [128:160] amount
+        //   [160:192] recipient (left-padded address)
+        uint256 mode;
         bytes32 blockHash;
         bytes32 txHash;
         uint256 amount;
         uint256 recipientWord;
         assembly {
-            blockHash := mload(add(proof, 32))
-            txHash := mload(add(proof, 96))
-            amount := mload(add(proof, 128))
-            recipientWord := mload(add(proof, 160))
+            mode := mload(add(proof, 32))
+            blockHash := mload(add(proof, 64))
+            txHash := mload(add(proof, 128))
+            amount := mload(add(proof, 160))
+            recipientWord := mload(add(proof, 192))
         }
+        require(mode == 0, "proof is not a deposit proof");
         address recipient = address(uint160(recipientWord));
 
         console.log("  Block hash:", vm.toString(blockHash));

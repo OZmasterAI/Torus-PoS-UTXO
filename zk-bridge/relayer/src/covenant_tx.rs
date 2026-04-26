@@ -15,6 +15,7 @@ pub struct CovenantUtxo {
 pub struct WithdrawalParams {
     pub recipient_addr_hash: [u8; 20],
     pub amount: u64,
+    pub evm_requester: [u8; 20],
 }
 
 #[derive(Debug, Clone)]
@@ -71,14 +72,20 @@ fn build_unsigned_tx(utxo: &CovenantUtxo, withdrawal: &WithdrawalParams) -> Vec<
     // sequence
     tx.extend_from_slice(&0xffffffffu32.to_le_bytes());
 
-    // vout count
-    tx.push(1u8);
-    // value
+    // vout count (P2PKH + OP_RETURN)
+    tx.push(2u8);
+
+    // vout 0: P2PKH to recipient
     tx.extend_from_slice(&withdrawal.amount.to_le_bytes());
-    // scriptPubKey: P2PKH to recipient
     let spk = build_p2pkh_script(&withdrawal.recipient_addr_hash);
     push_varint(&mut tx, spk.len() as u64);
     tx.extend_from_slice(&spk);
+
+    // vout 1: OP_RETURN with 20-byte EVM requester address
+    tx.extend_from_slice(&0u64.to_le_bytes()); // zero value
+    let op_return_script = build_op_return_script(&withdrawal.evm_requester);
+    push_varint(&mut tx, op_return_script.len() as u64);
+    tx.extend_from_slice(&op_return_script);
 
     // locktime
     tx.extend_from_slice(&0u32.to_le_bytes());
@@ -172,6 +179,14 @@ fn build_path_a_script_sig(
     script.push(0x00); // OP_0
     script.push(0x51); // OP_TRUE (OP_1)
 
+    script
+}
+
+fn build_op_return_script(evm_address: &[u8; 20]) -> Vec<u8> {
+    let mut script = Vec::new();
+    script.push(0x6a); // OP_RETURN
+    script.push(0x14); // push 20 bytes
+    script.extend_from_slice(evm_address);
     script
 }
 

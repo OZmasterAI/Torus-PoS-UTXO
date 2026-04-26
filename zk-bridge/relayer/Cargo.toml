@@ -22,3 +22,5 @@ tracing-subscriber = "0.3"
 dotenvy = "0.15"
 axum = "0.7"
 k256 = { version = "0.13", features = ["ecdsa"] }
+secp256k1 = "0.30"
+bitcoin_hashes = "0.14"

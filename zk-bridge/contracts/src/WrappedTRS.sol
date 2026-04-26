@@ -148,6 +148,7 @@ contract ThresholdVerifier is IVerifier {
 
     constructor(address[] memory _signers, uint256 _threshold) {
         require(_threshold > 0 && _threshold <= _signers.length, "invalid threshold");
+        require(_signers.length <= 256, "too many signers");
         for (uint256 i = 0; i < _signers.length; i++) {
             for (uint256 j = i + 1; j < _signers.length; j++) {
                 require(_signers[i] != _signers[j], "duplicate signer");
