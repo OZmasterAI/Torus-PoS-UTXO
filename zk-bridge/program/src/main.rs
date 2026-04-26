@@ -31,7 +31,12 @@ pub fn main() {
         "merkle inclusion proof invalid",
     );
 
-    // --- Public outputs (160 bytes, big-endian for Solidity) ---
+    // --- Public outputs (192 bytes, big-endian for Solidity) ---
+    // [0:32] mode (0=deposit, 1=withdrawal)
+    let mut mode_bytes = [0u8; 32];
+    mode_bytes[31] = mode;
+    sp1_zkvm::io::commit_slice(&mode_bytes);
+
     let mut block_hash_be = block_hash;
     block_hash_be.reverse();
     sp1_zkvm::io::commit_slice(&block_hash_be);

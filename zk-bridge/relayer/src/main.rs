@@ -313,9 +313,13 @@ async fn process_withdrawal_cycle(
             amount: event.amount,
         };
 
+        let canonical_msg = format!(
+            "{}:{}:{}",
+            withdrawal_id, event.amount, bob_auth.torus_address
+        );
         let bob = covenant_tx::BobAuth {
             signature: hex::decode(&bob_auth.torus_signature).unwrap_or_default(),
-            message: withdrawal_id.as_bytes().to_vec(),
+            message: canonical_msg.into_bytes(),
             pubkey: hex::decode(&bob_auth.torus_pubkey).unwrap_or_default(),
         };
 

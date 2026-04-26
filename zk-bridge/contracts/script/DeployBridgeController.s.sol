@@ -9,6 +9,7 @@ contract DeployBridgeController is Script {
     address constant WTRS = 0x4e01C78c4EE00B77df2f23bfEA70a1194A2E963a;
 
     uint256 constant MIN_STAKE = 0.01 ether;
+    uint256 constant MIN_WITHDRAWAL = 1e6; // 0.01 TRS (8 decimals)
     uint256 constant WITHDRAWAL_TIMEOUT = 1 hours;
     uint256 constant UNSTAKE_COOLDOWN = 1 hours;
 
@@ -23,8 +24,9 @@ contract DeployBridgeController is Script {
 
         BridgeController controller = new BridgeController(
             IVerifier(SP1_VERIFIER),
-            IERC20(WTRS),
+            IERC20Burnable(WTRS),
             MIN_STAKE,
+            MIN_WITHDRAWAL,
             WITHDRAWAL_TIMEOUT,
             UNSTAKE_COOLDOWN
         );

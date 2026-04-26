@@ -15,6 +15,10 @@ contract MockWTRS is ERC20 {
         _mint(to, amount);
     }
 
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+
     function decimals() public pure override returns (uint8) {
         return 8;
     }
@@ -59,6 +63,7 @@ contract BridgeControllerTest is Test {
     address public user = address(0x2001);
 
     uint256 constant MIN_STAKE = 1 ether;
+    uint256 constant MIN_WITHDRAWAL = 1e6; // 0.01 TRS
     uint256 constant WITHDRAWAL_TIMEOUT = 1 days;
     uint256 constant UNSTAKE_COOLDOWN = 7 days;
 
@@ -69,8 +74,9 @@ contract BridgeControllerTest is Test {
 
         controller = new BridgeController(
             IVerifier(address(verifierPass)),
-            IERC20(address(wTRS)),
+            IERC20Burnable(address(wTRS)),
             MIN_STAKE,
+            MIN_WITHDRAWAL,
             WITHDRAWAL_TIMEOUT,
             UNSTAKE_COOLDOWN
         );
@@ -261,6 +267,12 @@ contract BridgeControllerTest is Test {
         controller.requestWithdrawal(0, bytes20(hex"1234567890123456789012345678901234567890"));
     }
 
+    function test_requestWithdrawal_belowMinimum() public {
+        vm.prank(user);
+        vm.expectRevert(BridgeController.BelowMinWithdrawal.selector);
+        controller.requestWithdrawal(MIN_WITHDRAWAL - 1, bytes20(hex"1234567890123456789012345678901234567890"));
+    }
+
     function test_requestWithdrawal_noApproval() public {
         // No approval given -- should revert on transferFrom
         vm.prank(user);
@@ -285,6 +297,7 @@ contract BridgeControllerTest is Test {
 
         (, , , , , bool completed) = controller.withdrawals(id);
         assertTrue(completed, "withdrawal completed");
+        assertEq(wTRS.balanceOf(address(controller)), 0, "wTRS burned after confirm");
     }
 
     function test_confirmWithdrawal_emitsEvent() public {
@@ -327,8 +340,9 @@ contract BridgeControllerTest is Test {
         // Deploy controller with failing verifier
         BridgeController failController = new BridgeController(
             IVerifier(address(verifierFail)),
-            IERC20(address(wTRS)),
+            IERC20Burnable(address(wTRS)),
             MIN_STAKE,
+            MIN_WITHDRAWAL,
             WITHDRAWAL_TIMEOUT,
             UNSTAKE_COOLDOWN
         );
@@ -386,8 +400,10 @@ contract BridgeControllerTest is Test {
         assertEq(stake1, 1 ether, "op1 stake halved");
         assertEq(stake2, 2 ether, "op2 stake halved");
 
-        // User receives slashed ETH
+        // User receives slashed ETH + wTRS refund
         assertEq(user.balance, userBalBefore + 3 ether, "user received slashed ETH");
+        assertEq(wTRS.balanceOf(user), 100e8, "wTRS refunded to user");
+        assertEq(wTRS.balanceOf(address(controller)), 0, "controller balance zero");
 
         // Withdrawal marked completed (prevents re-slash)
         (, , , , , bool completed) = controller.withdrawals(id);

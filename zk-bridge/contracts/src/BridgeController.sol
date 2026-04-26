@@ -5,6 +5,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+interface IERC20Burnable is IERC20 {
+    function burn(uint256 amount) external;
+}
+
 /// @title IVerifier — verification interface (same as WrappedTRS)
 /// @notice Reuses the same verifyDeposit signature. For withdrawals the
 ///         verifier proves a torus-core transaction exists in a valid PoS
@@ -24,7 +28,7 @@ interface IVerifier {
 ///         from the EVM side back to torus-core, and slashes operators for
 ///         failing to fulfill withdrawals within the deadline.
 contract BridgeController is ReentrancyGuard {
-    using SafeERC20 for IERC20;
+    using SafeERC20 for IERC20Burnable;
 
     // --- Types ---
 
@@ -46,8 +50,9 @@ contract BridgeController is ReentrancyGuard {
     // --- State ---
 
     IVerifier public immutable withdrawalVerifier;
-    IERC20 public immutable token;
+    IERC20Burnable public immutable token;
     uint256 public immutable minStake;
+    uint256 public immutable minWithdrawal;
     uint256 public immutable withdrawalTimeout;
     uint256 public immutable unstakeCooldown;
 
@@ -81,6 +86,7 @@ contract BridgeController is ReentrancyGuard {
     error CooldownNotElapsed();
     error OperatorStillActive();
     error ZeroAmount();
+    error BelowMinWithdrawal();
     error WithdrawalNotFound();
     error WithdrawalAlreadyCompleted();
     error InvalidProof();
@@ -91,14 +97,16 @@ contract BridgeController is ReentrancyGuard {
 
     constructor(
         IVerifier _withdrawalVerifier,
-        IERC20 _token,
+        IERC20Burnable _token,
         uint256 _minStake,
+        uint256 _minWithdrawal,
         uint256 _withdrawalTimeout,
         uint256 _unstakeCooldown
     ) {
         withdrawalVerifier = _withdrawalVerifier;
         token = _token;
         minStake = _minStake;
+        minWithdrawal = _minWithdrawal;
         withdrawalTimeout = _withdrawalTimeout;
         unstakeCooldown = _unstakeCooldown;
     }
@@ -165,6 +173,7 @@ contract BridgeController is ReentrancyGuard {
         bytes20 torusAddress
     ) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
+        if (amount < minWithdrawal) revert BelowMinWithdrawal();
 
         // Transfer wTRS from caller (requires approval)
         token.safeTransferFrom(msg.sender, address(this), amount);
@@ -222,6 +231,7 @@ contract BridgeController is ReentrancyGuard {
         if (!valid) revert InvalidProof();
 
         w.completed = true;
+        token.burn(w.amount);
 
         emit WithdrawalCompleted(withdrawalId, txHash);
     }
@@ -237,6 +247,7 @@ contract BridgeController is ReentrancyGuard {
         if (block.timestamp < w.deadline) revert DeadlineNotPassed();
 
         w.completed = true; // Prevent re-slashing
+        token.safeTransfer(w.requester, w.amount);
 
         uint256 totalSlashed = 0;
         uint256 len = operatorList.length;

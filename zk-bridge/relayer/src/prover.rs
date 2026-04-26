@@ -9,7 +9,7 @@ pub struct BridgeProver {
 }
 
 pub struct ProofResult {
-    /// Concatenated [publicValues (160 bytes) | groth16Proof] for WrappedTRS.mint()
+    /// Concatenated [publicValues (192 bytes) | groth16Proof] for WrappedTRS.mint()
     pub calldata: Vec<u8>,
     pub block_hash_be: [u8; 32],
     pub tx_hash_be: [u8; 32],
@@ -71,15 +71,15 @@ impl BridgeProver {
         let proof_bytes = proof.bytes();
 
         assert!(
-            public_values.len() >= 160,
-            "expected 160 bytes of public values, got {}",
+            public_values.len() >= 192,
+            "expected 192 bytes of public values, got {}",
             public_values.len()
         );
 
         let mut block_hash_be = [0u8; 32];
         let mut tx_hash_be = [0u8; 32];
-        block_hash_be.copy_from_slice(&public_values[0..32]);
-        tx_hash_be.copy_from_slice(&public_values[64..96]);
+        block_hash_be.copy_from_slice(&public_values[32..64]);
+        tx_hash_be.copy_from_slice(&public_values[96..128]);
 
         let mut calldata = Vec::with_capacity(public_values.len() + proof_bytes.len());
         calldata.extend_from_slice(public_values);
@@ -140,15 +140,15 @@ impl BridgeProver {
         let proof_bytes = proof.bytes();
 
         assert!(
-            public_values.len() >= 160,
-            "expected 160 bytes of public values, got {}",
+            public_values.len() >= 192,
+            "expected 192 bytes of public values, got {}",
             public_values.len()
         );
 
         let mut block_hash_be = [0u8; 32];
         let mut tx_hash_be = [0u8; 32];
-        block_hash_be.copy_from_slice(&public_values[0..32]);
-        tx_hash_be.copy_from_slice(&public_values[64..96]);
+        block_hash_be.copy_from_slice(&public_values[32..64]);
+        tx_hash_be.copy_from_slice(&public_values[96..128]);
 
         let mut calldata = Vec::with_capacity(public_values.len() + proof_bytes.len());
         calldata.extend_from_slice(public_values);

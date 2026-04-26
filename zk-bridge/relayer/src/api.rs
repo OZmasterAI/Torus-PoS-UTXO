@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::extract::State;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
@@ -84,11 +84,42 @@ async fn post_withdrawal_auth(
     })))
 }
 
+#[derive(Serialize)]
+struct PendingWithdrawalPublic {
+    withdrawal_id: String,
+    amount: u64,
+    torus_address: String,
+}
+
 async fn get_pending_withdrawals(
+    headers: HeaderMap,
     State(store): State<WithdrawalAuthStore>,
-) -> Json<Vec<WithdrawalAuth>> {
+) -> Result<Json<Vec<PendingWithdrawalPublic>>, StatusCode> {
+    let api_key = std::env::var("RELAYER_API_KEY").unwrap_or_default();
+    if api_key.is_empty() {
+        warn!("RELAYER_API_KEY not set — pending-withdrawals endpoint disabled");
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    let provided = headers
+        .get("x-api-key")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+
+    if provided != api_key {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
     let map = store.read().await;
-    Json(map.values().cloned().collect())
+    let public: Vec<PendingWithdrawalPublic> = map
+        .values()
+        .map(|a| PendingWithdrawalPublic {
+            withdrawal_id: a.withdrawal_id.clone(),
+            amount: a.amount,
+            torus_address: a.torus_address.clone(),
+        })
+        .collect();
+    Ok(Json(public))
 }
 
 pub async fn start_api_server(store: WithdrawalAuthStore, bind_addr: &str) {

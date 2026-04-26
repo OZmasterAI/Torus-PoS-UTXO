@@ -139,6 +139,20 @@ fn set_script_sig(tx: &mut Vec<u8>, _utxo: &CovenantUtxo, script_sig: &[u8]) {
     *tx = new_tx;
 }
 
+fn encode_script_num(val: u64) -> Vec<u8> {
+    if val == 0 {
+        return vec![];
+    }
+    let mut bytes = val.to_le_bytes().to_vec();
+    while bytes.last() == Some(&0) {
+        bytes.pop();
+    }
+    if bytes.last().map_or(false, |b| b & 0x80 != 0) {
+        bytes.push(0x00);
+    }
+    bytes
+}
+
 fn build_path_a_script_sig(
     addr_hash: &[u8; 20],
     amount: u64,
@@ -148,7 +162,7 @@ fn build_path_a_script_sig(
     let mut script = Vec::new();
 
     push_data(&mut script, addr_hash);
-    push_data(&mut script, &amount.to_le_bytes());
+    push_data(&mut script, &encode_script_num(amount));
     push_data(&mut script, &bob_auth.signature);
     push_data(&mut script, &bob_auth.message);
     push_data(&mut script, &bob_auth.pubkey);
