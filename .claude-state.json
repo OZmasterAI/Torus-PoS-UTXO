@@ -1,28 +1,28 @@
 {
-  "session_count": 37,
-  "feature": "chain-swap-genesis",
+  "session_count": 39,
+  "feature": "zk-bridge-security-audit",
   "framework_version": "v2.8.0",
-  "what_was_done": "Completed all 5 chain swap genesis tasks. Bootstrapped node to 835,771. Ran dumputxoset (28,183 UTXOs, 156M TRS). Generated real genesis_utxos.h. Mined new genesis (hash=0x00000e566b84cb7d...). Updated MAX_MONEY 150M->200M, stake modifier checksum, merkle root assert. Fixed GetBlocksToMaturity genesis exemption. E2E wallet import test passed (4,242 TRS). Committed as e39fbb8.",
+  "what_was_done": "Patched all 22 remaining zk-bridge findings (5 MED + 9 LOW + 8 INFO) across 3 commits: ffc0439, 1b7d240, 6f42fa8. Combined with prior CRIT/HIGH patches, all 39 audit findings are now resolved.",
   "known_issues": [
     "MAX_MONEY set to 200M - needs hard-fork bump before ~2034 (5% annual PoS growth)",
-    "Root-level contracts/WrappedTRS.sol diverged from src/ version - consider deleting",
-    "Old sync node (/tmp/torus-sync) was stopped for testing - may need restart"
+    "Old sync node (/tmp/torus-sync) was stopped for testing - may need restart",
+    "No torus-core node currently running"
   ],
   "next_steps": [
     "Restart old sync node if needed: /home/crab/projects/torus-core-dump/src/TORUSd -datadir=/tmp/torus-sync -daemon",
     "Build and test new chain binary with peers (multi-node test)",
-    "Fix remaining zk-bridge findings: 7 medium + 7 low + 3 informational",
+    "Bump MAX_MONEY for mainnet supply growth",
     "Deploy new genesis to seed nodes for chain swap launch"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-04-26T17:55:00",
+  "last_updated": "2026-04-27T01:27:00",
   "dag_branch": "main",
   "sync_daemon": {
     "binary": "/home/crab/projects/torus-core-dump/src/TORUSd",
     "datadir": "/tmp/torus-sync",
     "target_height": 835771,
     "last_seen_height": 835771,
-    "status": "fully synced via bootstrap, stopped for new genesis testing",
+    "status": "stopped - no node running",
     "bootstrap_height": 835771,
     "peers": [
       "207.180.236.165",
@@ -41,5 +41,10 @@
     "utxo_count": 28183,
     "total_supply": "156271175.48265919",
     "snapshot_height": 835771
+  },
+  "zk_bridge_audit": {
+    "status": "complete",
+    "total_findings": 39,
+    "commits": ["8cdb011", "b141952", "ffc0439", "1b7d240", "6f42fa8"]
   }
 }
