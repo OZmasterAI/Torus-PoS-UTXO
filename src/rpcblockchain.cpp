@@ -5,6 +5,9 @@
 
 #include "main.h"
 #include "bitcoinrpc.h"
+#include "base58.h"
+#include <fstream>
+#include <boost/filesystem.hpp>
 
 using namespace json_spirit;
 using namespace std;
@@ -304,4 +307,160 @@ Value getcheckpoint(const Array& params, bool fHelp)
         result.push_back(Pair("checkpointmaster", true));
 
     return result;
+}
+
+Value dumputxoset(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "dumputxoset [height]\n"
+            "Dumps all unspent transaction outputs (UTXOs) at the given block height\n"
+            "to a JSON file in the data directory.\n"
+            "If height is not specified, uses the current best block height.\n"
+            "Returns a summary with height, UTXO count, and total amount.");
+
+    // Determine target height
+    int nTargetHeight = nBestHeight;
+    if (params.size() > 0)
+    {
+        nTargetHeight = params[0].get_int();
+        if (nTargetHeight < 0 || nTargetHeight > nBestHeight)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
+    }
+
+    // Find the block index at the target height
+    CBlockIndex* pindexTarget = pindexGenesisBlock;
+    while (pindexTarget && pindexTarget->nHeight < nTargetHeight)
+        pindexTarget = pindexTarget->pnext;
+
+    if (!pindexTarget || pindexTarget->nHeight != nTargetHeight)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Block not found at specified height");
+
+    // Walk the chain from genesis to target height, collecting all transaction
+    // outputs and removing spent ones to build the complete UTXO set.
+    map<COutPoint, CTxOut> mapUTXOs;
+
+    printf("dumputxoset: scanning blocks 0 to %d...\n", nTargetHeight);
+
+    CBlockIndex* pindex = pindexGenesisBlock;
+    while (pindex && pindex->nHeight <= nTargetHeight)
+    {
+        CBlock block;
+        if (!block.ReadFromDisk(pindex, true))
+            throw JSONRPCError(RPC_INTERNAL_ERROR,
+                strprintf("Failed to read block at height %d", pindex->nHeight));
+
+        for (unsigned int i = 0; i < block.vtx.size(); i++)
+        {
+            const CTransaction& tx = block.vtx[i];
+            uint256 txhash = tx.GetHash();
+
+            // Mark spent inputs - remove from UTXO set
+            if (!tx.IsCoinBase())
+            {
+                for (const CTxIn& txin : tx.vin)
+                {
+                    mapUTXOs.erase(txin.prevout);
+                }
+            }
+
+            // Add new outputs to the UTXO set
+            for (unsigned int n = 0; n < tx.vout.size(); n++)
+            {
+                const CTxOut& txout = tx.vout[n];
+
+                // Skip empty outputs (e.g., PoS marker output)
+                if (txout.IsEmpty())
+                    continue;
+
+                // Skip zero-value outputs
+                if (txout.nValue == 0)
+                    continue;
+
+                mapUTXOs[COutPoint(txhash, n)] = txout;
+            }
+        }
+
+        if (pindex->nHeight % 10000 == 0)
+            printf("dumputxoset: processed block %d...\n", pindex->nHeight);
+
+        pindex = pindex->pnext;
+    }
+
+    printf("dumputxoset: found %u unspent outputs, building JSON...\n",
+        (unsigned int)mapUTXOs.size());
+
+    // Build the JSON output
+    Array utxoArray;
+    int64_t nTotalAmount = 0;
+
+    for (map<COutPoint, CTxOut>::const_iterator it = mapUTXOs.begin();
+         it != mapUTXOs.end(); ++it)
+    {
+        const COutPoint& outpoint = it->first;
+        const CTxOut& txout = it->second;
+
+        Object utxoEntry;
+
+        // Extract address from scriptPubKey
+        CTxDestination dest;
+        if (ExtractDestination(txout.scriptPubKey, dest))
+        {
+            CBitcoinAddress addr(dest);
+            utxoEntry.push_back(Pair("address", addr.ToString()));
+        }
+        else
+        {
+            utxoEntry.push_back(Pair("address", string("unknown")));
+        }
+
+        // scriptPubKey as hex
+        utxoEntry.push_back(Pair("scriptPubKey",
+            HexStr(txout.scriptPubKey.begin(), txout.scriptPubKey.end())));
+
+        // Amount in satoshis
+        utxoEntry.push_back(Pair("amount", txout.nValue));
+
+        // txid and vout
+        utxoEntry.push_back(Pair("txid", outpoint.hash.GetHex()));
+        utxoEntry.push_back(Pair("vout", (int)outpoint.n));
+
+        nTotalAmount += txout.nValue;
+        utxoArray.push_back(utxoEntry);
+    }
+
+    // Build the top-level JSON object
+    Object result;
+    result.push_back(Pair("height", nTargetHeight));
+
+    // ISO 8601 timestamp
+    string strTimestamp = DateTimeStrFormat("%Y-%m-%dT%H:%M:%SZ",
+        pindexTarget->GetBlockTime());
+    result.push_back(Pair("timestamp", strTimestamp));
+    result.push_back(Pair("utxos", utxoArray));
+
+    // Write to file
+    boost::filesystem::path pathSnapshot = GetDataDir() /
+        strprintf("utxo_snapshot_%d.json", nTargetHeight);
+
+    std::ofstream file(pathSnapshot.string().c_str());
+    if (!file.is_open())
+        throw JSONRPCError(RPC_INTERNAL_ERROR,
+            "Failed to open output file: " + pathSnapshot.string());
+
+    string strJSON = write_string(Value(result), true);
+    file << strJSON;
+    file.close();
+
+    printf("dumputxoset: wrote %u UTXOs to %s\n",
+        (unsigned int)utxoArray.size(), pathSnapshot.string().c_str());
+
+    // Return summary
+    Object summary;
+    summary.push_back(Pair("height", nTargetHeight));
+    summary.push_back(Pair("utxo_count", (int)utxoArray.size()));
+    summary.push_back(Pair("total_amount", nTotalAmount));
+    summary.push_back(Pair("file", pathSnapshot.string()));
+
+    return summary;
 }

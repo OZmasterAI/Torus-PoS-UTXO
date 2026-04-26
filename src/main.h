@@ -41,7 +41,7 @@ static const int64_t MIN_TX_FEE = 1000000;
 static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 static const int64_t MAX_MONEY = 150000000 * COIN;
 static const int64_t COIN_YEAR_REWARD = 5 * CENT;
-static const int PERMANENT_STAKE_ACTIVATION_HEIGHT = 450000;
+static const int PERMANENT_STAKE_ACTIVATION_HEIGHT = 0;
 static const int COVENANT_ACTIVATION_HEIGHT = 1;
 static const int64_t MIN_PERMANENT_STAKE = 100 * COIN;
 
@@ -54,6 +54,7 @@ static const int fHaveUPnP = true;
 #else
 static const int fHaveUPnP = false;
 #endif
+// TODO: update after mining new genesis
 static const uint256 hashGenesisBlock("0x000005a39de532e9f2546ad8c954a21f01e0064f3edc9fea108f39e0499a011d");
 static const uint256 hashGenesisBlockTestNet("0x000005a39de532e9f2546ad8c954a21f01e0064f3edc9fea108f39e0499a011d");
 

@@ -170,8 +170,6 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         {
             if(rcp.amount < MIN_PERMANENT_STAKE)
                 return InvalidAmount;
-            if(nBestHeight < PERMANENT_STAKE_ACTIVATION_HEIGHT)
-                return InvalidAmount;
         }
 
         total += rcp.amount;

@@ -11,6 +11,7 @@
 #include "init.h"
 #include "ui_interface.h"
 #include "kernel.h"
+#include "genesis_utxos.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -1310,18 +1311,28 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
                 return DoS(100, error("ConnectInputs() : %s prevout.n out of range %d %lu %lu prev tx %s\n%s", GetHash().ToString().substr(0,10).c_str(), prevout.n, txPrev.vout.size(), txindex.vSpent.size(), prevout.hash.ToString().substr(0,10).c_str(), txPrev.ToString().c_str()));
 
             // If prev is coinbase or coinstake, check that it's matured
+            // Exempt genesis block (height 0) coinbase outputs so UTXO snapshot balances are immediately spendable
             if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
+            {
+                bool fGenesisOutput = false;
                 for (const CBlockIndex* pindex = pindexBlock; pindex && pindexBlock->nHeight - pindex->nHeight < nCoinbaseMaturity; pindex = pindex->pprev)
+                {
                     if (pindex->nBlockPos == txindex.pos.nBlockPos && pindex->nFile == txindex.pos.nFile)
-                        return error("ConnectInputs() : tried to spend %s at depth %d", txPrev.IsCoinBase() ? "coinbase" : "coinstake", pindexBlock->nHeight - pindex->nHeight);
+                    {
+                        if (pindex->nHeight == 0)
+                            fGenesisOutput = true;
+                        else
+                            return error("ConnectInputs() : tried to spend %s at depth %d", txPrev.IsCoinBase() ? "coinbase" : "coinstake", pindexBlock->nHeight - pindex->nHeight);
+                    }
+                }
+            }
 
             // ppcoin: check transaction timestamp
             if (txPrev.nTime > nTime)
                 return DoS(100, error("ConnectInputs() : transaction timestamp earlier than input transaction"));
 
             // Permanent stake: locked outputs can only be spent in a coinstake transaction
-            if (pindexBlock->nHeight >= PERMANENT_STAKE_ACTIVATION_HEIGHT &&
-                IsPermanentStakeScript(txPrev.vout[prevout.n].scriptPubKey) &&
+            if (IsPermanentStakeScript(txPrev.vout[prevout.n].scriptPubKey) &&
                 !IsCoinStake())
                 return DoS(100, error("ConnectInputs() : tried to spend permanently locked output in non-coinstake transaction"));
 
@@ -1386,7 +1397,7 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             if (!MoneyRange(nFees))
                 return DoS(100, error("ConnectInputs() : nFees out of range"));
         }
-        else if (pindexBlock->nHeight >= PERMANENT_STAKE_ACTIVATION_HEIGHT)
+        else
         {
             // Coinstake spending permanent stake inputs must re-lock the principal
             int64_t nPermanentIn = 0;
@@ -1439,8 +1450,7 @@ bool CTransaction::ClientConnectInputs()
                 return false;
 
             // Reject mempool transactions that spend permanently locked outputs
-            if (nBestHeight >= PERMANENT_STAKE_ACTIVATION_HEIGHT &&
-                IsPermanentStakeScript(txPrev.vout[prevout.n].scriptPubKey))
+            if (IsPermanentStakeScript(txPrev.vout[prevout.n].scriptPubKey))
                 return error("ClientConnectInputs() : tried to spend permanently locked output");
 
             // Verify signature
@@ -1580,7 +1590,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         mapQueuedChanges[hashTx] = CTxIndex(posThisTx, tx.vout.size());
     }
 
-    if (IsProofOfWork())
+    if (IsProofOfWork() && pindex->nHeight > 0)
     {
         int64_t nReward = GetProofOfWorkReward(nFees);
         // Check coinbase reward
@@ -1767,7 +1777,12 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
 
     if (pindexGenesisBlock == NULL && hash == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet))
     {
-        txdb.WriteHashBestChain(hash);
+        // Run ConnectBlock for genesis so UTXO snapshot outputs get indexed and become spendable
+        if (!ConnectBlock(txdb, pindexNew) || !txdb.WriteHashBestChain(hash))
+        {
+            txdb.TxnAbort();
+            return error("SetBestChain() : ConnectBlock for genesis failed");
+        }
         if (!txdb.TxnCommit())
             return error("SetBestChain() : TxnCommit failed");
         pindexGenesisBlock = pindexNew;
@@ -2494,26 +2509,34 @@ bool LoadBlockIndex(bool fAllowNew)
         if (!fAllowNew)
             return false;
 
-        const char* pszTimestamp = "The Guardian 09/Jun/2021 El Salvador becomes first country to adopt bitcoin as legal tender";
+        const char* pszTimestamp = "Torus Chain Launch 2026 - A New Beginning";
         CTransaction txNew;
-        txNew.nTime = 1638617750;
+        txNew.nTime = 1745625600;
         txNew.vin.resize(1);
-        txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 0 << CBigNum(42) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-        txNew.vout[0].SetEmpty();
+
+        // Populate coinbase outputs from UTXO snapshot
+        txNew.vout.resize(GENESIS_UTXOS.size());
+        for (unsigned int i = 0; i < GENESIS_UTXOS.size(); i++)
+        {
+            vector<unsigned char> vchScript = ParseHex(GENESIS_UTXOS[i].scriptPubKeyHex);
+            txNew.vout[i].nValue = GENESIS_UTXOS[i].amount;
+            txNew.vout[i].scriptPubKey = CScript(vchScript.begin(), vchScript.end());
+        }
+
         CBlock block;
         block.vtx.push_back(txNew);
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 1;
-        block.nTime    = 1638617750;
+        block.nTime    = 1745625600;
         block.nBits    = bnProofOfWorkLimit.GetCompact();
-        block.nNonce   = !fTestNet ? 627293 : 627293;
+        block.nNonce   = 0;
 
 
 // GEN ->
 
-        if (false && (block.GetHash() != hashGenesisBlock)) {
+        if (true && (block.GetHash() != hashGenesisBlock)) {
 
         // This will figure out a valid hash and Nonce if you're
         // creating a different genesis block:
@@ -2537,8 +2560,9 @@ bool LoadBlockIndex(bool fAllowNew)
 
 // <- GEN
 
-        assert(block.hashMerkleRoot == uint256("0xcdc376c01136ce03cbdf5c6faa1eeaaddaff9d2e40a4fdb2825b1cff8e123de6"));
-        assert(block.GetHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
+        // TODO: update after mining new genesis
+        // assert(block.hashMerkleRoot == uint256("0x..."));
+        // assert(block.GetHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
         assert(block.CheckBlock());
 
         // Start new block file

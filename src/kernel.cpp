@@ -12,12 +12,14 @@ using namespace std;
 typedef std::map<int, unsigned int> MapModifierCheckpoints;
 
 // Hard checkpoints of stake modifiers to ensure they are deterministic
+// TODO: update height 0 stake modifier checksum after mining new genesis
 static std::map<int, unsigned int> mapStakeModifierCheckpoints =
     boost::assign::map_list_of
 	( 0, 0x0e00670b )
     ;
 
 // Hard checkpoints of stake modifiers to ensure they are deterministic (testNet)
+// TODO: update height 0 stake modifier checksum after mining new genesis
 static std::map<int, unsigned int> mapStakeModifierCheckpointsTestNet =
     boost::assign::map_list_of
 	( 0, 0x0e00670b )

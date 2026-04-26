@@ -87,15 +87,6 @@ void StakePage::on_stakeButton_clicked()
         return;
     }
 
-    if(nBestHeight < PERMANENT_STAKE_ACTIVATION_HEIGHT)
-    {
-        QMessageBox::warning(this, tr("Permanent Stake"),
-            tr("Permanent staking activates at block %1 (current: %2).")
-                .arg(PERMANENT_STAKE_ACTIVATION_HEIGHT).arg(nBestHeight),
-            QMessageBox::Ok);
-        return;
-    }
-
     QMessageBox::StandardButton reply = QMessageBox::warning(this, tr("Permanent Stake"),
         tr("You are about to PERMANENTLY lock %1 for staking.\n\n"
            "This is IRREVERSIBLE. The locked coins can never be spent or unlocked.\n"

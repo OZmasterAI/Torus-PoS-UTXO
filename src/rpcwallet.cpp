@@ -1910,10 +1910,6 @@ Value permanentlock(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMETER,
             strprintf("Amount below minimum permanent stake (%s)", FormatMoney(MIN_PERMANENT_STAKE).c_str()));
 
-    if (nBestHeight < PERMANENT_STAKE_ACTIVATION_HEIGHT)
-        throw JSONRPCError(RPC_MISC_ERROR,
-            strprintf("Permanent staking activates at block %d (current: %d)", PERMANENT_STAKE_ACTIVATION_HEIGHT, nBestHeight));
-
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 
