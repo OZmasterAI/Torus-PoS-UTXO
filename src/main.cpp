@@ -810,6 +810,10 @@ int CMerkleTx::GetBlocksToMaturity() const
 {
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
+    CBlockIndex* pindex = NULL;
+    GetDepthInMainChainINTERNAL(pindex);
+    if (pindex && pindex->nHeight == 0)
+        return 0;
     return max(0, (nCoinbaseMaturity+10) - GetDepthInMainChain());
 }
 
@@ -2560,9 +2564,8 @@ bool LoadBlockIndex(bool fAllowNew)
 
 // <- GEN
 
-        // TODO: update after mining new genesis
-        // assert(block.hashMerkleRoot == uint256("0x..."));
-        // assert(block.GetHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
+        assert(block.hashMerkleRoot == uint256("0x44892330242e0f1e2515ca31116b953b532b40abcca746669f2f227bba54afc9"));
+        assert(block.GetHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
         assert(block.CheckBlock());
 
         // Start new block file
