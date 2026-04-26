@@ -44,7 +44,9 @@ impl RelayerState {
 
     pub fn save(&self) -> Result<()> {
         let data = serde_json::to_string_pretty(self)?;
-        std::fs::write(&self.file_path, data)?;
+        let tmp = self.file_path.with_extension("json.tmp");
+        std::fs::write(&tmp, data)?;
+        std::fs::rename(&tmp, &self.file_path)?;
         Ok(())
     }
 

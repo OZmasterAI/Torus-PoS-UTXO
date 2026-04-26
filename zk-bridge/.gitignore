@@ -6,3 +6,7 @@ target/
 out/
 cache/
 artifacts/
+groth16_*.bin
+groth16_*.hex
+groth16_*.json
+relayer_state.json

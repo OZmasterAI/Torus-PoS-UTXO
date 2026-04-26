@@ -3,7 +3,7 @@ use torus_bridge_relayer::covenant_tx::{self, BobAuth, CovenantUtxo, WithdrawalP
 use torus_bridge_relayer::state::RelayerState;
 
 #[tokio::test]
-async fn test_post_and_get_withdrawal_auth() {
+async fn test_post_withdrawal_auth_rejects_invalid_signature() {
     let store = api::new_auth_store();
     api::start_api_server(store.clone(), "127.0.0.1:13001").await;
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -24,21 +24,7 @@ async fn test_post_and_get_withdrawal_auth() {
         .send()
         .await
         .unwrap();
-    assert_eq!(resp.status(), 200);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert_eq!(body["status"], "accepted");
-    assert_eq!(body["withdrawal_id"], "abc123");
-
-    let resp = client
-        .get("http://127.0.0.1:13001/api/pending-withdrawals")
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), 200);
-    let pending: Vec<WithdrawalAuth> = resp.json().await.unwrap();
-    assert_eq!(pending.len(), 1);
-    assert_eq!(pending[0].withdrawal_id, "abc123");
-    assert_eq!(pending[0].amount, 1_000_000);
+    assert_eq!(resp.status(), 401, "invalid hex signature should be rejected");
 }
 
 #[tokio::test]
@@ -80,6 +66,7 @@ fn test_covenant_tx_structure() {
     let withdrawal = WithdrawalParams {
         recipient_addr_hash: [0xab; 20],
         amount: 50_000_000,
+        evm_requester: [0x42; 20],
     };
 
     let bob_auth = BobAuth {

@@ -10,6 +10,7 @@ contract DeployBridgeController is Script {
 
     uint256 constant MIN_STAKE = 0.01 ether;
     uint256 constant MIN_WITHDRAWAL = 1e6; // 0.01 TRS (8 decimals)
+    // TESTNET ONLY — production should use >= 24 hours / 7 days
     uint256 constant WITHDRAWAL_TIMEOUT = 1 hours;
     uint256 constant UNSTAKE_COOLDOWN = 1 hours;
 

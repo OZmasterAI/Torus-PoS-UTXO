@@ -312,18 +312,21 @@ contract SP1Verifier is IVerifier {
         bytes32 pBlockHash;
         bytes32 pTxHash;
         uint256 pAmount;
+        uint256 recipientWord;
 
         assembly {
             pMode := calldataload(proof.offset)
             pBlockHash := calldataload(add(proof.offset, 32))
             pTxHash := calldataload(add(proof.offset, 96))
             pAmount := calldataload(add(proof.offset, 128))
+            recipientWord := calldataload(add(proof.offset, 160))
         }
 
         if (pMode != 1) revert WrongProofMode();
         if (pBlockHash != blockHash) revert BlockHashMismatch();
         if (pTxHash != txHash) revert TxHashMismatch();
         if (pAmount != amount) revert AmountMismatch();
+        if (address(uint160(recipientWord)) != requester) revert RecipientMismatch();
 
         gateway.verifyProof(programVKey, proof[:192], proof[192:]);
 

@@ -18,10 +18,20 @@ contract TestMint is Script {
         uint256 amount = 1000 * 1e8; // 1000 TRS (8 decimals)
         address recipient = deployer;
 
-        // Create threshold signature (1-of-1: deployer signs the deposit attestation)
-        bytes32 message = keccak256(abi.encodePacked(blockHash, txHash, amount, recipient));
-        bytes32 ethMessage = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", message));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(deployerKey, ethMessage);
+        // Create threshold signature (1-of-1: deployer signs EIP-712 digest)
+        bytes32 DEPOSIT_TYPEHASH = keccak256("VerifyDeposit(bytes32 blockHash,bytes32 txHash,uint256 amount,address recipient)");
+        bytes32 DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256("TorusBridgeVerifier"),
+                keccak256("1"),
+                block.chainid,
+                address(token.verifier())
+            )
+        );
+        bytes32 structHash = keccak256(abi.encode(DEPOSIT_TYPEHASH, blockHash, txHash, amount, recipient));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(deployerKey, digest);
         bytes memory proof = abi.encodePacked(r, s, v);
 
         console.log("=== Test Mint on BSC Testnet ===");
