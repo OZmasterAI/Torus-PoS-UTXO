@@ -1,35 +1,32 @@
 {
-  "session_count": 33,
+  "session_count": 35,
   "feature": "chain-swap-genesis",
   "framework_version": "v2.8.0",
-  "what_was_done": "Bootstrap complete (424,889). Peer sync started, confirmed advancing past 425K. Deep zk-bridge review (25 findings). Fixed CRIT-2 wTRS burn bug in BridgeController+WrappedTRS+deploy+tests. Committed e836bcd (.qm cleanup).",
+  "what_was_done": "Fixed 8 zk-bridge vulns (b141952): CRIT-2 burn/refund, CRIT-3 CBigNum amount encoding, CRIT-4 mode byte in ZK outputs, CRIT-5 BobAuth binding, HIGH-1 EIP-712, HIGH-2 dedup signers, HIGH-3 minWithdrawal, HIGH-4 API auth, HIGH-5 verifyWithdrawal. 27 forge tests pass. Restarted stalled sync daemon (flood control disconnects).",
   "known_issues": [
     "genesis_utxos.h has placeholder data - needs real dumputxoset output",
     "Hash constants in main.h still point to old genesis - update after mining",
     "Stake modifier checksums in kernel.cpp need update after new genesis",
-    "zk-bridge CRIT-2 fix needs forge build + forge test verification",
-    "zk-bridge: 4 remaining criticals (CRIT-3 amount encoding, CRIT-4 proof mode, CRIT-5 sig binding) + 5 highs unfixed",
-    "Root-level contracts/WrappedTRS.sol diverged from src/ version - consider deleting"
+    "Root-level contracts/WrappedTRS.sol diverged from src/ version - consider deleting",
+    "Sync was stalled at 434K due to flood control disconnects - daemon restarted"
   ],
   "next_steps": [
     "Check sync height: grep SetBestChain /tmp/torus-sync/debug.log | tail -1 (target 835,771)",
     "If daemon died: /home/crab/projects/torus-core-dump/src/TORUSd -datadir=/tmp/torus-sync -daemon",
-    "forge build + forge test in zk-bridge/contracts/ to verify CRIT-2 fix compiles",
-    "Commit zk-bridge CRIT-2 fix (WrappedTRS burn, BridgeController, deploy script, tests)",
     "At sync tip: dumputxoset -> convert_utxo_snapshot.py -> real genesis_utxos.h",
     "Rebuild old-chain, mine new genesis, update main.h hash + kernel.cpp checksums + re-enable asserts",
     "Task 5: e2e wallet import test",
-    "Fix remaining zk-bridge criticals (CRIT-3,4,5) and highs"
+    "Fix remaining zk-bridge findings: 7 medium + 7 low + 3 informational"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-04-26T14:17:00",
+  "last_updated": "2026-04-26T14:50:00",
   "dag_branch": "main",
   "sync_daemon": {
     "binary": "/home/crab/projects/torus-core-dump/src/TORUSd",
     "datadir": "/tmp/torus-sync",
     "target_height": 835771,
-    "last_seen_height": 425992,
-    "status": "peer syncing from 425K to 835K (bootstrap done)",
+    "last_seen_height": 434728,
+    "status": "restarted after flood control stall at 434K, syncing to 835K",
     "bootstrap_height": 424889,
     "peers": [
       "207.180.236.165",
