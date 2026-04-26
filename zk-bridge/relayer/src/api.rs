@@ -59,11 +59,15 @@ fn verify_withdrawal_signature(auth: &WithdrawalAuth) -> bool {
     }
 }
 
+const MAX_STORE_SIZE: usize = 10_000;
+const MAX_WITHDRAWAL_ID_LEN: usize = 66;
+
 async fn post_withdrawal_auth(
     State(store): State<WithdrawalAuthStore>,
     Json(auth): Json<WithdrawalAuth>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     if auth.withdrawal_id.is_empty()
+        || auth.withdrawal_id.len() > MAX_WITHDRAWAL_ID_LEN
         || auth.torus_signature.is_empty()
         || auth.torus_pubkey.is_empty()
     {
@@ -76,7 +80,12 @@ async fn post_withdrawal_auth(
     }
 
     let withdrawal_id = auth.withdrawal_id.clone();
-    store.write().await.insert(withdrawal_id.clone(), auth);
+    let mut map = store.write().await;
+    if map.len() >= MAX_STORE_SIZE && !map.contains_key(&withdrawal_id) {
+        warn!("withdrawal auth store full ({MAX_STORE_SIZE}), rejecting {withdrawal_id}");
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    }
+    map.insert(withdrawal_id.clone(), auth);
 
     Ok(Json(serde_json::json!({
         "status": "accepted",

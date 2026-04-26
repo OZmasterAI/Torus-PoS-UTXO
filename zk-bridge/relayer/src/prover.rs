@@ -1,5 +1,5 @@
 use crate::torus_rpc::ProofInputs;
-use eyre::Result;
+use eyre::{eyre, ensure, Result};
 use sp1_sdk::blocking::{Elf, ProveRequest, Prover, ProverClient, SP1Stdin};
 use sp1_sdk::ProvingKey;
 use tracing::info;
@@ -50,7 +50,8 @@ impl BridgeProver {
         let client = ProverClient::builder().cpu().build();
 
         info!("Setting up proving key...");
-        let pk = client.setup(self.elf.clone()).expect("SP1 setup failed");
+        let pk = client.setup(self.elf.clone())
+            .map_err(|e| eyre!("SP1 setup failed: {e}"))?;
         let vk = pk.verifying_key().clone();
 
         info!("Generating Groth16 proof (this may take ~35s on Prover Network)...");
@@ -59,46 +60,15 @@ impl BridgeProver {
             .prove(&pk, stdin)
             .groth16()
             .run()
-            .expect("Groth16 proving failed");
+            .map_err(|e| eyre!("Groth16 proving failed: {e}"))?;
         info!("Proof generated in {:.1?}", t0.elapsed());
 
         info!("Verifying proof locally...");
         client
             .verify(&proof, &vk, None)
-            .expect("proof verification failed");
+            .map_err(|e| eyre!("proof verification failed: {e}"))?;
 
-        let public_values = proof.public_values.as_slice();
-        let proof_bytes = proof.bytes();
-
-        assert!(
-            public_values.len() >= 192,
-            "expected 192 bytes of public values, got {}",
-            public_values.len()
-        );
-
-        let mut block_hash_be = [0u8; 32];
-        let mut tx_hash_be = [0u8; 32];
-        block_hash_be.copy_from_slice(&public_values[32..64]);
-        tx_hash_be.copy_from_slice(&public_values[96..128]);
-
-        let mut calldata = Vec::with_capacity(public_values.len() + proof_bytes.len());
-        calldata.extend_from_slice(public_values);
-        calldata.extend_from_slice(&proof_bytes);
-
-        info!(
-            "Calldata ready: {} bytes ({} public values + {} proof)",
-            calldata.len(),
-            public_values.len(),
-            proof_bytes.len()
-        );
-
-        Ok(ProofResult {
-            calldata,
-            block_hash_be,
-            tx_hash_be,
-            amount: inputs.amount,
-            recipient: inputs.recipient,
-        })
+        Self::extract_proof_result(&proof, inputs)
     }
 
     pub fn generate_withdrawal_proof(&self, inputs: &ProofInputs) -> Result<ProofResult> {
@@ -119,7 +89,8 @@ impl BridgeProver {
         let client = ProverClient::builder().cpu().build();
 
         info!("Setting up proving key...");
-        let pk = client.setup(self.elf.clone()).expect("SP1 setup failed");
+        let pk = client.setup(self.elf.clone())
+            .map_err(|e| eyre!("SP1 setup failed: {e}"))?;
         let vk = pk.verifying_key().clone();
 
         info!("Generating Groth16 withdrawal proof (this may take ~35s on Prover Network)...");
@@ -128,20 +99,24 @@ impl BridgeProver {
             .prove(&pk, stdin)
             .groth16()
             .run()
-            .expect("Groth16 proving failed");
+            .map_err(|e| eyre!("Groth16 proving failed: {e}"))?;
         info!("Withdrawal proof generated in {:.1?}", t0.elapsed());
 
         info!("Verifying proof locally...");
         client
             .verify(&proof, &vk, None)
-            .expect("proof verification failed");
+            .map_err(|e| eyre!("proof verification failed: {e}"))?;
 
+        Self::extract_proof_result(&proof, inputs)
+    }
+
+    fn extract_proof_result(proof: &sp1_sdk::SP1ProofWithPublicValues, inputs: &ProofInputs) -> Result<ProofResult> {
         let public_values = proof.public_values.as_slice();
         let proof_bytes = proof.bytes();
 
-        assert!(
+        ensure!(
             public_values.len() >= 192,
-            "expected 192 bytes of public values, got {}",
+            "expected >= 192 bytes of public values, got {}",
             public_values.len()
         );
 

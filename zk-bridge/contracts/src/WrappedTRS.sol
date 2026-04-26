@@ -95,12 +95,15 @@ contract WrappedTRS is ERC20, Ownable2Step, Pausable {
         _burn(msg.sender, amount);
     }
 
+    uint256 public withdrawalNonce;
+
     function withdraw(uint256 amount, bytes calldata torusAddress) external whenNotPaused {
         if (amount == 0) revert ZeroAmount();
 
         bytes32 withdrawalId = keccak256(
-            abi.encodePacked(msg.sender, amount, torusAddress, block.number)
+            abi.encodePacked(msg.sender, amount, torusAddress, withdrawalNonce++)
         );
+        require(!processedWithdrawals[withdrawalId], "duplicate withdrawal");
 
         _burn(msg.sender, amount);
         processedWithdrawals[withdrawalId] = true;
@@ -117,9 +120,13 @@ contract WrappedTRS is ERC20, Ownable2Step, Pausable {
         emit VerifierUpdated(old, _newVerifier);
     }
 
+    event DepositLimitsUpdated(uint256 newMin, uint256 newMax);
+
     function setDepositLimits(uint256 _min, uint256 _max) external onlyOwner {
+        require(_max == 0 || _min <= _max, "min > max");
         minDeposit = _min;
         maxDeposit = _max;
+        emit DepositLimitsUpdated(_min, _max);
     }
 
     function pause() external onlyOwner {

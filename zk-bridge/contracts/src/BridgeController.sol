@@ -92,8 +92,13 @@ contract BridgeController is ReentrancyGuard {
     error InvalidProof();
     error DeadlineNotPassed();
     error TransferFailed();
+    error InvalidTorusAddress();
+    error UnstakeAlreadyInitiated();
+    error TooManyOperators();
 
     // --- Constructor ---
+
+    uint256 public constant MAX_OPERATORS = 200;
 
     constructor(
         IVerifier _withdrawalVerifier,
@@ -103,6 +108,8 @@ contract BridgeController is ReentrancyGuard {
         uint256 _withdrawalTimeout,
         uint256 _unstakeCooldown
     ) {
+        require(address(_withdrawalVerifier) != address(0), "zero verifier");
+        require(address(_token) != address(0), "zero token");
         withdrawalVerifier = _withdrawalVerifier;
         token = _token;
         minStake = _minStake;
@@ -118,6 +125,7 @@ contract BridgeController is ReentrancyGuard {
     function registerOperator() external payable {
         if (msg.value < minStake) revert InsufficientStake();
         if (operators[msg.sender].active) revert AlreadyRegistered();
+        if (operatorList.length >= MAX_OPERATORS) revert TooManyOperators();
 
         operators[msg.sender] = Operator({
             stake: msg.value,
@@ -134,6 +142,7 @@ contract BridgeController is ReentrancyGuard {
     function initiateUnstake() external {
         Operator storage op = operators[msg.sender];
         if (!op.active) revert NotOperator();
+        if (op.unstakeInitiated != 0) revert UnstakeAlreadyInitiated();
 
         op.unstakeInitiated = block.timestamp;
 
@@ -174,6 +183,7 @@ contract BridgeController is ReentrancyGuard {
     ) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
         if (amount < minWithdrawal) revert BelowMinWithdrawal();
+        if (torusAddress == bytes20(0)) revert InvalidTorusAddress();
 
         // Transfer wTRS from caller (requires approval)
         token.safeTransferFrom(msg.sender, address(this), amount);

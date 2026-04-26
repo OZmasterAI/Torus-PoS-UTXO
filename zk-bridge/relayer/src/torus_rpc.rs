@@ -129,7 +129,7 @@ impl TorusRpcClient {
 
             if category == "receive" && address == bridge_address {
                 let amount_f64 = tx["amount"].as_f64().unwrap_or(0.0);
-                let amount = (amount_f64 * 1e8) as u64;
+                let amount = (amount_f64 * 1e8).round() as u64;
 
                 deposits.push(DepositInfo {
                     txid: tx["txid"].as_str().unwrap_or_default().to_string(),
@@ -241,7 +241,7 @@ impl TorusRpcClient {
             .as_array()
             .and_then(|vouts| vouts.get(prevout_n as usize))
             .and_then(|v| v["value"].as_f64())
-            .map(|v| (v * 1e8) as u64)
+            .map(|v| (v * 1e8).round() as u64)
             .unwrap_or(0);
 
         // Get the block containing the prev tx for block_time_from
