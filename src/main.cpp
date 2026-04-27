@@ -39,6 +39,7 @@ map<uint256, CBlockIndex*> mapBlockIndex;
 set<pair<COutPoint, unsigned int> > setStakeSeen;
 
 CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Starting Difficulty: results with 0,000244140625 proof-of-work difficulty
+CBigNum bnFastPoWLimit(~uint256(0) >> 15);     // Easier limit for fast PoW phase (blocks 203-2000)
 CBigNum bnProofOfStakeLimit(~uint256(0) >> 24); // Proof of stake target limit, results with 0,00390625 proof of stake difficulty
 CBigNum bnProofOfWorkLimitTestNet(~uint256(0) >> 16);
 
@@ -1034,14 +1035,23 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
 
 unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime)
 {
-    return ComputeMaxBits(bnProofOfWorkLimit, nBase, nTime);
+    return ComputeMaxBits(bnFastPoWLimit, nBase, nTime);
 }
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake)
 {
-    CBigNum bnTargetLimit = fProofOfStake ? GetProofOfStakeLimit(pindexLast->nTime) : bnProofOfWorkLimit;
+    bool fFastPoW = !fProofOfStake && pindexLast != NULL &&
+                    pindexLast->nHeight >= (FAST_POW_FORK_HEIGHT - 1) &&
+                    pindexLast->nHeight < LAST_POW_BLOCK;
+
+    CBigNum bnTargetLimit = fProofOfStake ? GetProofOfStakeLimit(pindexLast->nTime) :
+                            (fFastPoW ? bnFastPoWLimit : bnProofOfWorkLimit);
 
     if (pindexLast == NULL)
         return bnTargetLimit.GetCompact(); // genesis block
+
+    // One-time difficulty reset at fast PoW fork
+    if (fFastPoW && pindexLast->nHeight == (FAST_POW_FORK_HEIGHT - 1))
+        return bnFastPoWLimit.GetCompact();
 
     const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
     if (pindexPrev->pprev == NULL)
@@ -1050,7 +1060,8 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
     if (pindexPrevPrev->pprev == NULL)
         return bnTargetLimit.GetCompact(); // second block
 
-    unsigned int nSpacing = nTargetSpacing;
+    unsigned int nSpacing = fFastPoW ? 8 : nTargetSpacing;
+    int64_t nTimespan = fFastPoW ? 240 : nTargetTimespan;
 
     int64_t nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
     if (nActualSpacing < 0)
@@ -1060,7 +1071,7 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
     bnNew.SetCompact(pindexPrev->nBits);
-    int64_t nInterval = (nTargetTimespan) / nSpacing;
+    int64_t nInterval = nTimespan / nSpacing;
     bnNew *= ((nInterval - 1) * nSpacing + nActualSpacing + nActualSpacing);
     bnNew /= ((nInterval + 1) * nSpacing);
 
@@ -1075,8 +1086,8 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits)
     CBigNum bnTarget;
     bnTarget.SetCompact(nBits);
 
-    // Check range
-    if (bnTarget <= 0 || bnTarget > bnProofOfWorkLimit)
+    // Check range (use bnFastPoWLimit — it's the widest valid PoW target)
+    if (bnTarget <= 0 || bnTarget > bnFastPoWLimit)
         return error("CheckProofOfWork() : nBits below minimum work");
 
     // Check proof of work matches claimed amount
