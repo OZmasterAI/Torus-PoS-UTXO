@@ -2,7 +2,7 @@
 
 Torus is a new chain upgraded from [torus-core](https://github.com/torus-economy/torus-core). The genesis block carries a balance snapshot taken at block **835,771** of the original chain, preserving all existing balances. From there, the chain starts fresh at block 0 with new features including permanent staking, covenant opcodes, and a ZK bridge.
 
-**Existing users** can migrate by importing their `wallet.dat` file or private keys from the original torus-core wallet — all balances from the snapshot are immediately spendable on the new chain.
+**Existing users** can migrate by importing their `wallet.dat` file or private keys from the original torus-core wallet — all balances from the snapshot are immediately spendable on the new chain. After importing, add `rescan=1` to your `TORUS.conf` and restart the node to pick up existing balances.
 
 Ticker: TRS \
 Proof of Stake: 5% yearly rate \
