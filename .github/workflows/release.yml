@@ -106,3 +106,74 @@ jobs:
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-mac:
+    name: Build TORUS-Qt wallet for macOS
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          brew install boost@1.76 berkeley-db@5 miniupnpc qrencode qt@5 openssl@1.1
+          brew link boost@1.76 qt@5 --force
+
+      - name: Build TORUS-Qt
+        run: |
+          export PATH="/usr/local/opt/qt@5/bin:$PATH"
+          export LDFLAGS="-L/usr/local/opt/qt@5/lib -L/usr/local/opt/openssl@1.1/lib -L/usr/local/opt/berkeley-db@5/lib -L/usr/local/opt/boost@1.76/lib"
+          export CPPFLAGS="-I/usr/local/opt/qt@5/include -I/usr/local/opt/openssl@1.1/include -I/usr/local/opt/berkeley-db@5/include -I/usr/local/opt/boost@1.76/include"
+          export PKG_CONFIG_PATH="/usr/local/opt/qt@5/lib/pkgconfig"
+          qmake \
+            RELEASE=1 \
+            USE_QRCODE=1 \
+            USE_UPNP=1 \
+            BOOST_INCLUDE_PATH=/usr/local/opt/boost@1.76/include \
+            BOOST_LIB_PATH=/usr/local/opt/boost@1.76/lib \
+            OPENSSL_INCLUDE_PATH=/usr/local/opt/openssl@1.1/include \
+            OPENSSL_LIB_PATH=/usr/local/opt/openssl@1.1/lib \
+            BDB_INCLUDE_PATH=/usr/local/opt/berkeley-db@5/include \
+            BDB_LIB_PATH=/usr/local/opt/berkeley-db@5/lib \
+            MINIUPNPC_INCLUDE_PATH=/usr/local/opt/miniupnpc/include \
+            MINIUPNPC_LIB_PATH=/usr/local/opt/miniupnpc/lib \
+            QRENCODE_INCLUDE_PATH=/usr/local/opt/qrencode/include \
+            QRENCODE_LIB_PATH=/usr/local/opt/qrencode/lib \
+            torus.pro
+          make -j$(sysctl -n hw.ncpu)
+
+      - name: Create app bundle
+        run: |
+          mkdir -p TORUS-Qt.app/Contents/MacOS
+          mkdir -p TORUS-Qt.app/Contents/Resources
+          cp TORUS-Qt TORUS-Qt.app/Contents/MacOS/
+          cat > TORUS-Qt.app/Contents/Info.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>TORUS-Qt</string>
+            <key>CFBundleIdentifier</key>
+            <string>cc.torus.wallet</string>
+            <key>CFBundleName</key>
+            <string>TORUS-Qt</string>
+            <key>CFBundleVersion</key>
+            <string>1.0.3</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+          </dict>
+          </plist>
+          PLIST
+          /usr/local/opt/qt@5/bin/macdeployqt TORUS-Qt.app
+          zip -r torus-qt-macos.zip TORUS-Qt.app
+
+      - name: Create release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: "torus-qt-macos.zip"
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
