@@ -156,6 +156,7 @@ Value getworkex(const Array& params, bool fHelp)
 
         // Update nTime
         pblock->nTime = max(pindexPrev->GetPastTimeLimit()+1, GetAdjustedTime());
+        pblock->vtx[0].nTime = pblock->nTime;
         pblock->nNonce = 0;
 
         // Update nExtraNonce
@@ -219,6 +220,7 @@ Value getworkex(const Array& params, bool fHelp)
         CBlock* pblock = mapNewBlock[pdata->hashMerkleRoot].first;
 
         pblock->nTime = pdata->nTime;
+        pblock->vtx[0].nTime = pblock->nTime;
         pblock->nNonce = pdata->nNonce;
 
         if(coinbase.size() == 0)
@@ -298,6 +300,7 @@ Value getwork(const Array& params, bool fHelp)
 
         // Update nTime
         pblock->UpdateTime(pindexPrev);
+        pblock->vtx[0].nTime = pblock->nTime;
         pblock->nNonce = 0;
 
         // Update nExtraNonce
@@ -340,6 +343,7 @@ Value getwork(const Array& params, bool fHelp)
         CBlock* pblock = mapNewBlock[pdata->hashMerkleRoot].first;
 
         pblock->nTime = pdata->nTime;
+        pblock->vtx[0].nTime = pblock->nTime;
         pblock->nNonce = pdata->nNonce;
         pblock->vtx[0].vin[0].scriptSig = mapNewBlock[pdata->hashMerkleRoot].second;
         pblock->hashMerkleRoot = pblock->BuildMerkleTree();
@@ -432,6 +436,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
 
     // Update nTime
     pblock->UpdateTime(pindexPrev);
+    pblock->vtx[0].nTime = pblock->nTime;
     pblock->nNonce = 0;
 
     Array transactions;
