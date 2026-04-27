@@ -5,55 +5,16 @@ Proof of Stake: 5% yearly rate \
 Min. stake age: 8 hours \
 Block time: 120 sec
 
-Official block explorer: [explorer.torus.cc](https://explorer.torus.cc/)
-
 - Burn address: [TEuWjbJPZiuzbhuS6YFE5v4gGzkkt26HDJ](https://explorer.torus.cc/address/TEuWjbJPZiuzbhuS6YFE5v4gGzkkt26HDJ) \
   [See](contrib/burn-address.py) for more details.
-- UBI Pool address: [TRRCa4hwjA4GhBCGLajVwpapC853S1dtbM](https://explorer.torus.cc/address/TRRCa4hwjA4GhBCGLajVwpapC853S1dtbM)
+- UBI Pool address:
 
 ---
 
 ## Run a node
 
-Torus full node can be run using a prebuild Docker image. This is recommended as the image is under the active development. \
-Image tagged as `latest` will always match the master branch.
-If you want to run a stable release, use the image tag that corresponds to the official release - e.g. `torusd:1.0.0`.
-
-Pull image:
-
-```bash
-docker pull ghcr.io/torus-economy/torusd:latest
-```
-
-Run container:
-
-```bash
-docker run \
-    -d \
-    -p 24111:24111 \
-    -v /home/$USER/.TORUS:/root/.TORUS \
-    --name TORUSd \
-    --restart=always \
-    ghcr.io/torus-economy/torusd:latest
-```
-
-or with RPC port enabled:
-
-```bash
-docker run \
-    -d \
-    -p 24111:24111 \
-    -p 24112:24112 \
-    -v /home/$USER/.TORUS:/root/.TORUS \
-    --name TORUSd \
-    --restart=always \
-    ghcr.io/torus-economy/torusd:latest
-```
-
 Make sure to have a valid `TORUS.conf` file in `/home/$USER/.TORUS/TORUS.conf` or in any other path that was specified.
 For more information about configuration file see [example](TORUS.conf).
-Docker container must always have torusd process running in the foreground, so do not include `daemon=1` in `TORUS.conf` configuration file when running within Docker.
-In case `daemon=1` is included, the Docker process will exit immediately.
 
 Minimum `TORUS.conf` configuration file should include the following:
 
@@ -64,49 +25,15 @@ server=1
 listen=1
 ```
 
-### docker-compose
-
-This could also be achived by running a docker-compose script.
-Preconfigured docker-compose script with corresponding `TORUS.conf` configuration file can be found in [contrib](contrib/docker-compose) folder.
-For security reasons, make sure to change `rpcuser` and `rpcpassword` default values.
-Afterwards, the script can be run:
-
-```bash
-cd contrib/docker-compose
-docker-compose up -d
-```
-
-#### TORUSd daemon commands in Docker
-
-If TORUSd is running in Docker, daemon commands can be run in the following way:
-
-```bash
-docker exec TORUSd ./TORUSd <command> <params>
-```
-
-For example, to get basic info and staking info:
-
-```bash
-docker exec TORUSd ./TORUSd getinfo
-docker exec TORUSd ./TORUSd getstakinginfo
-```
-
 #### Seed nodes
 
 Official seed nodes:
 
-- 154.56.63.68
-- 154.56.63.66
-- 153.92.223.18
-- 185.150.117.203
-- 185.150.117.219
-- 84.32.188.71
+- 95.111.231.121
 
 Official DNS seed servers:
 
-- dnsseed1.torus.cc
-- dnsseed2.torus.cc
-- dnsseed3.torus.cc
+-
 
 ### Build from source
 
