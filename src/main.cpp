@@ -971,9 +971,7 @@ int64_t GetProofOfWorkReward(int64_t nFees)
 {
     int64_t nSubsidy = 0;
 
-    // premine coins
-    if (pindexBest->nHeight == 0)
-        nSubsidy = MAX_MONEY;
+    nSubsidy = 0;
 
     if (fDebug && GetBoolArg("-printcreation"))
         printf("GetProofOfWorkReward() : create=%s nSubsidy=%" PRId64 "\n", FormatMoney(nSubsidy).c_str(), nSubsidy);
@@ -2564,7 +2562,7 @@ bool LoadBlockIndex(bool fAllowNew)
 
 // <- GEN
 
-        assert(block.hashMerkleRoot == uint256("0x44892330242e0f1e2515ca31116b953b532b40abcca746669f2f227bba54afc9"));
+        assert(block.hashMerkleRoot == uint256("0x512f68781c9b411aca0e27e400d0b6a8103d86efb555efa73da18d6cd61f7553"));
         assert(block.GetHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
         assert(block.CheckBlock());
 
