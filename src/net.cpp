@@ -1240,9 +1240,7 @@ void MapPort()
 // The first name is used as information source for addrman.
 // The second name should resolve to a list of seed addresses.
 static const char *strDNSSeed[][2] = {
-    {"dnsseed1", "dnsseed1.torus.cc"},
-    {"dnsseed2", "dnsseed2.torus.cc"},
-    {"dnsseed3", "dnsseed3.torus.cc"},
+    {NULL, NULL},
 };
 
 void ThreadDNSAddressSeed(void* parg)
@@ -1275,7 +1273,7 @@ void ThreadDNSAddressSeed2(void* parg)
     {
         printf("Loading addresses from DNS seeds (could take a while)\n");
 
-        for (unsigned int seed_idx = 0; seed_idx < ARRAYLEN(strDNSSeed); seed_idx++) {
+        for (unsigned int seed_idx = 0; seed_idx < ARRAYLEN(strDNSSeed) && strDNSSeed[seed_idx][0] != NULL; seed_idx++) {
             if (HaveNameProxy()) {
                 AddOneShot(strDNSSeed[seed_idx][1]);
             } else {
