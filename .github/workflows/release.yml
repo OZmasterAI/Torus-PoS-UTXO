@@ -109,7 +109,7 @@ jobs:
 
   build-mac:
     name: Build TORUS-Qt wallet for macOS
-    runs-on: macos-13
+    runs-on: macos-14
 
     steps:
       - name: Checkout Repository
@@ -117,34 +117,42 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install boost@1.76 berkeley-db@5 miniupnpc qrencode qt@5 openssl@1.1
-          brew link boost@1.76 qt@5 --force
+          brew install boost berkeley-db@5 miniupnpc qrencode qt@5 openssl@1.1
+          brew link qt@5 --force
 
       - name: Build TORUS-Qt
         run: |
-          export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/qt@5/lib -L/usr/local/opt/openssl@1.1/lib -L/usr/local/opt/berkeley-db@5/lib -L/usr/local/opt/boost@1.76/lib"
-          export CPPFLAGS="-I/usr/local/opt/qt@5/include -I/usr/local/opt/openssl@1.1/include -I/usr/local/opt/berkeley-db@5/include -I/usr/local/opt/boost@1.76/include"
-          export PKG_CONFIG_PATH="/usr/local/opt/qt@5/lib/pkgconfig"
+          BOOST_PREFIX=$(brew --prefix boost)
+          BDB_PREFIX=$(brew --prefix berkeley-db@5)
+          OPENSSL_PREFIX=$(brew --prefix openssl@1.1)
+          QT_PREFIX=$(brew --prefix qt@5)
+          MINIUPNPC_PREFIX=$(brew --prefix miniupnpc)
+          QRENCODE_PREFIX=$(brew --prefix qrencode)
+
+          export PATH="$QT_PREFIX/bin:$PATH"
+          export LDFLAGS="-L$QT_PREFIX/lib -L$OPENSSL_PREFIX/lib -L$BDB_PREFIX/lib -L$BOOST_PREFIX/lib"
+          export CPPFLAGS="-I$QT_PREFIX/include -I$OPENSSL_PREFIX/include -I$BDB_PREFIX/include -I$BOOST_PREFIX/include"
+          export PKG_CONFIG_PATH="$QT_PREFIX/lib/pkgconfig"
           qmake \
             RELEASE=1 \
             USE_QRCODE=1 \
             USE_UPNP=1 \
-            BOOST_INCLUDE_PATH=/usr/local/opt/boost@1.76/include \
-            BOOST_LIB_PATH=/usr/local/opt/boost@1.76/lib \
-            OPENSSL_INCLUDE_PATH=/usr/local/opt/openssl@1.1/include \
-            OPENSSL_LIB_PATH=/usr/local/opt/openssl@1.1/lib \
-            BDB_INCLUDE_PATH=/usr/local/opt/berkeley-db@5/include \
-            BDB_LIB_PATH=/usr/local/opt/berkeley-db@5/lib \
-            MINIUPNPC_INCLUDE_PATH=/usr/local/opt/miniupnpc/include \
-            MINIUPNPC_LIB_PATH=/usr/local/opt/miniupnpc/lib \
-            QRENCODE_INCLUDE_PATH=/usr/local/opt/qrencode/include \
-            QRENCODE_LIB_PATH=/usr/local/opt/qrencode/lib \
+            BOOST_INCLUDE_PATH=$BOOST_PREFIX/include \
+            BOOST_LIB_PATH=$BOOST_PREFIX/lib \
+            OPENSSL_INCLUDE_PATH=$OPENSSL_PREFIX/include \
+            OPENSSL_LIB_PATH=$OPENSSL_PREFIX/lib \
+            BDB_INCLUDE_PATH=$BDB_PREFIX/include \
+            BDB_LIB_PATH=$BDB_PREFIX/lib \
+            MINIUPNPC_INCLUDE_PATH=$MINIUPNPC_PREFIX/include \
+            MINIUPNPC_LIB_PATH=$MINIUPNPC_PREFIX/lib \
+            QRENCODE_INCLUDE_PATH=$QRENCODE_PREFIX/include \
+            QRENCODE_LIB_PATH=$QRENCODE_PREFIX/lib \
             torus.pro
           make -j$(sysctl -n hw.ncpu)
 
       - name: Create app bundle
         run: |
+          QT_PREFIX=$(brew --prefix qt@5)
           mkdir -p TORUS-Qt.app/Contents/MacOS
           mkdir -p TORUS-Qt.app/Contents/Resources
           cp TORUS-Qt TORUS-Qt.app/Contents/MacOS/
@@ -166,7 +174,7 @@ jobs:
           </dict>
           </plist>
           PLIST
-          /usr/local/opt/qt@5/bin/macdeployqt TORUS-Qt.app
+          $QT_PREFIX/bin/macdeployqt TORUS-Qt.app
           zip -r torus-qt-macos.zip TORUS-Qt.app
 
       - name: Create release
