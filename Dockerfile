@@ -10,6 +10,9 @@ FROM ubuntu as base
 
 LABEL maintainer="Sven Skender (@sskender)"
 
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
 RUN apt-get update -y
 
 RUN apt-get install \
