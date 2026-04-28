@@ -120,13 +120,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install boost@1.76 berkeley-db@5 miniupnpc qrencode qt@5 openssl@1.1
-          brew link boost@1.76 qt@5 --force
+          brew install boost@1.85 berkeley-db@5 miniupnpc qrencode qt@5 openssl@1.1
+          brew link boost@1.85 qt@5 --force
 
       - name: Build TORUS-Qt
         run: |
           export SDKROOT=$(xcrun --show-sdk-path)
-          BOOST_PREFIX=$(brew --prefix boost@1.76)
+          BOOST_PREFIX=$(brew --prefix boost@1.85)
           BDB_PREFIX=$(brew --prefix berkeley-db@5)
           OPENSSL_PREFIX=$(brew --prefix openssl@1.1)
           QT_PREFIX=$(brew --prefix qt@5)
