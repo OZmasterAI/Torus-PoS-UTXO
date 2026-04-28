@@ -37,5 +37,5 @@ jobs:
           platforms: linux/amd64,linux/386,linux/arm/v7
           push: true
           target: torusd-unix
-          tags: ghcr.io/torus-economy/torusd:latest
+          tags: ghcr.io/ozmasterai/torusd:latest
           file: Dockerfile

@@ -23,7 +23,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/torus-economy/torusd
+          images: ghcr.io/ozmasterai/torusd
           tags: |
             type=semver,pattern={{version}}
 
