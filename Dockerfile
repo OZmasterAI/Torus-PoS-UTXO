@@ -51,6 +51,8 @@ ENV BERKELEYDB_VERSION=db-5.3.28
 RUN wget "http://download.oracle.com/berkeley-db/${BERKELEYDB_VERSION}.tar.gz"
 RUN tar -xvzf ${BERKELEYDB_VERSION}.tar.gz
 
+RUN sed -i 's/__atomic_compare_exchange/__atomic_compare_exchange_db/g' /opt/${BERKELEYDB_VERSION}/src/dbinc/atomic.h
+
 WORKDIR /opt/${BERKELEYDB_VERSION}/build_unix
 RUN ../dist/configure --with-static --enable-cxx --disable-shared --with-pic --prefix=/usr/local && \
     make -j$(nproc) && \
