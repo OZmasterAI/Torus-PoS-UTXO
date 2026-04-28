@@ -125,6 +125,7 @@ jobs:
 
       - name: Build TORUS-Qt
         run: |
+          export SDKROOT=$(xcrun --show-sdk-path)
           BOOST_PREFIX=$(brew --prefix boost)
           BDB_PREFIX=$(brew --prefix berkeley-db@5)
           OPENSSL_PREFIX=$(brew --prefix openssl@1.1)
