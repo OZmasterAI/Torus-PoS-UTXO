@@ -36,7 +36,7 @@ RUN apt-get install \
     libminiupnpc-dev \
     libqrencode-dev \
     libssl-dev \
-    libzmq-dev \
+    libzmq3-dev \
     -y
 
 RUN apt-get clean && \
