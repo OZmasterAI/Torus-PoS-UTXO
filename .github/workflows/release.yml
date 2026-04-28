@@ -159,7 +159,9 @@ jobs:
           QT_PREFIX=$(brew --prefix qt@5)
           mkdir -p TORUS-Qt.app/Contents/MacOS
           mkdir -p TORUS-Qt.app/Contents/Resources
-          cp TORUS-Qt TORUS-Qt.app/Contents/MacOS/
+          if [ -f TORUS-Qt ]; then
+            cp TORUS-Qt TORUS-Qt.app/Contents/MacOS/
+          fi
           cat > TORUS-Qt.app/Contents/Info.plist << 'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
