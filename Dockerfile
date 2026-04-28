@@ -25,6 +25,8 @@ RUN apt-get install \
     bsdmainutils \
     cmake \
     curl \
+    g++ \
+    gcc \
     libtool \
     make \
     python3 \
