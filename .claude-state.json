@@ -1,37 +1,44 @@
 {
-  "session_count": 39,
-  "feature": "zk-bridge-security-audit",
+  "session_count": 61,
+  "feature": "block-explorer",
   "framework_version": "v2.8.0",
-  "what_was_done": "Patched all 22 remaining zk-bridge findings (5 MED + 9 LOW + 8 INFO) across 3 commits: ffc0439, 1b7d240, 6f42fa8. Combined with prior CRIT/HIGH patches, all 39 audit findings are now resolved.",
+  "what_was_done": "Added responsive HashDisplay component + ErrorBoundary with retry. Connected explorer to live TORUSd daemon (fixed creds, StakingInfo field name). All 5 API routes verified against live chain at height 2000.",
   "known_issues": [
+    "StakeMiner requires vNodes.size() >= 3 to activate - blocks solo/small-network staking",
     "MAX_MONEY set to 200M - needs hard-fork bump before ~2034 (5% annual PoS growth)",
-    "Old sync node (/tmp/torus-sync) was stopped for testing - may need restart",
-    "No torus-core node currently running"
+    "release-notes.md still has torus-economy links",
+    "Gate 3 blocks git push from Claude - user must push manually",
+    "pnSeed hardcoded seed is VPS own IP (circular) - add real peer IPs when network grows",
+    "torus-explorer address page limited in v1 - no address index in daemon RPC",
+    "torus-explorer dev server uses port 3001 (3000 occupied by toroidal-economy app)"
   ],
   "next_steps": [
-    "Restart old sync node if needed: /home/crab/projects/torus-core-dump/src/TORUSd -datadir=/tmp/torus-sync -daemon",
-    "Build and test new chain binary with peers (multi-node test)",
-    "Bump MAX_MONEY for mainnet supply growth",
-    "Deploy new genesis to seed nodes for chain swap launch"
+    "Lower vNodes.size() < 3 requirement in miner.cpp:542 to allow staking with fewer peers",
+    "Verify v2.0.2 release CI completes (Docker push to ghcr.io/ozmasterai/torusd)",
+    "torus-explorer: visual QA of responsive hash truncation in browser",
+    "torus-explorer: add pagination to blocks list page",
+    "torus-explorer: add WebSocket or polling for live block updates"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-04-27T01:27:00",
+  "last_updated": "2026-05-03T18:52:00",
   "dag_branch": "main",
-  "sync_daemon": {
-    "binary": "/home/crab/projects/torus-core-dump/src/TORUSd",
-    "datadir": "/tmp/torus-sync",
-    "target_height": 835771,
-    "last_seen_height": 835771,
-    "status": "stopped - no node running",
-    "bootstrap_height": 835771,
-    "peers": [
-      "207.180.236.165",
-      "144.91.72.207",
-      "194.163.141.193",
-      "62.171.155.29",
-      "75.119.141.88",
-      "213.190.25.21"
-    ]
+  "github_repo": "OZmasterAI/Torus-PoS-UTXO",
+  "network_magic": "0x4d, 0xa7, 0xb3, 0xe6",
+  "seed_node": "95.111.231.121",
+  "mining": {
+    "binary": "/tmp/cpuminer-build/minerd",
+    "algo": "sha256d",
+    "rpc_port": 24112,
+    "rpc_user": "torusrpc",
+    "rpc_password_in": "~/.TORUS/TORUS.conf",
+    "threads": 1,
+    "current_block": 2000,
+    "pow_difficulty": 0.005,
+    "hashrate_khps": 7,
+    "fast_pow_active": true,
+    "fast_pow_fork_height": 203,
+    "fast_pow_target_spacing": 8,
+    "last_pow_block": 2000
   },
   "genesis": {
     "hash": "0x00000e566b84cb7d88db5bc6f0afa22ede9afbdd4ba0d0ce60f645e5fd49dff8",
@@ -39,12 +46,20 @@
     "nonce": 1671673,
     "stake_modifier_checksum": "0xfd11f4e7",
     "utxo_count": 28183,
-    "total_supply": "156271175.48265919",
+    "total_supply": "100627087.69302028",
     "snapshot_height": 835771
   },
   "zk_bridge_audit": {
     "status": "complete",
     "total_findings": 39,
-    "commits": ["8cdb011", "b141952", "ffc0439", "1b7d240", "6f42fa8"]
-  }
+    "commits": [
+      "8cdb011",
+      "b141952",
+      "ffc0439",
+      "1b7d240",
+      "6f42fa8"
+    ]
+  },
+  "dag_node_count": 174817,
+  "last_response_preview": "Yes, exactly \u2014 `~/.claude` IS being counted as a project. Here's the smoking gun:\n\n**`hooks/boot_pkg/util.py:103-104`**\n```python\nwhile d != os.sep and d != home:\n    if d == claude_dir:\n        return \"torus-framework\", claude_dir, None, None  # <-- THIS\n```\n\nThe fallback git-ancestor walk explicitly returns `\"torus-framework\"` when it hits `~/.claude`. That makes `_is_project_session = True` in orchestrator.py, which then reads `session_count` from `.claude-state.json` (24) instead of `LIVE_ST"
 }
