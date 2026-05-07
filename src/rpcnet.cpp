@@ -69,6 +69,50 @@ Value getpeerinfo(const Array& params, bool fHelp)
     return ret;
 }
  
+Value addnode(const Array& params, bool fHelp)
+{
+    string strCommand;
+    if (params.size() == 2)
+        strCommand = params[1].get_str();
+    if (fHelp || params.size() != 2 ||
+        (strCommand != "onetry" && strCommand != "add" && strCommand != "remove"))
+        throw runtime_error(
+            "addnode <node> <add|remove|onetry>\n"
+            "Attempts to add or remove a node from the addnode list.\n"
+            "Or try a connection to a node once.");
+
+    string strNode = params[0].get_str();
+
+    if (strCommand == "onetry")
+    {
+        CAddress addr;
+        ConnectNode(addr, strNode.c_str());
+        return Value::null;
+    }
+
+    if (strCommand == "add")
+    {
+        vector<string>& vAddedNodes = mapMultiArgs["-addnode"];
+        for (const string& node : vAddedNodes)
+            if (node == strNode)
+                throw JSONRPCError(-23, "Node already added");
+        vAddedNodes.push_back(strNode);
+    }
+    else if (strCommand == "remove")
+    {
+        vector<string>& vAddedNodes = mapMultiArgs["-addnode"];
+        for (vector<string>::iterator it = vAddedNodes.begin(); it != vAddedNodes.end(); ++it) {
+            if (*it == strNode) {
+                vAddedNodes.erase(it);
+                return Value::null;
+            }
+        }
+        throw JSONRPCError(-24, "Node not found in addnode list");
+    }
+
+    return Value::null;
+}
+
 // ppcoin: send alert.  
 // There is a known deadlock situation with ThreadMessageHandler
 // ThreadMessageHandler: holds cs_vSend and acquiring cs_main in SendMessages()
