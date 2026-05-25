@@ -1,8 +1,8 @@
 {
-  "session_count": 61,
-  "feature": "block-explorer",
+  "session_count": 63,
+  "feature": "networking",
   "framework_version": "v2.8.0",
-  "what_was_done": "Added responsive HashDisplay component + ErrorBoundary with retry. Connected explorer to live TORUSd daemon (fixed creds, StakingInfo field name). All 5 API routes verified against live chain at height 2000.",
+  "what_was_done": "Enabled UPnP by default (net.cpp:53). Added addnode RPC command (rpcnet.cpp). Pushed and tagged v2.0.3 for CI release build. Investigated NAT/peer discovery — only code-level fix remaining is relay mode.",
   "known_issues": [
     "StakeMiner requires vNodes.size() >= 3 to activate - blocks solo/small-network staking",
     "MAX_MONEY set to 200M - needs hard-fork bump before ~2034 (5% annual PoS growth)",
@@ -13,14 +13,15 @@
     "torus-explorer dev server uses port 3001 (3000 occupied by toroidal-economy app)"
   ],
   "next_steps": [
+    "Verify v2.0.3 release CI completes (Windows Qt + macOS + Docker)",
+    "Consider relay mode implementation for NAT peer connectivity",
+    "Set up DNS seed domain to populate empty strDNSSeed array",
     "Lower vNodes.size() < 3 requirement in miner.cpp:542 to allow staking with fewer peers",
-    "Verify v2.0.2 release CI completes (Docker push to ghcr.io/ozmasterai/torusd)",
     "torus-explorer: visual QA of responsive hash truncation in browser",
-    "torus-explorer: add pagination to blocks list page",
-    "torus-explorer: add WebSocket or polling for live block updates"
+    "torus-explorer: add pagination to blocks list page"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-05-03T18:52:00",
+  "last_updated": "2026-05-07T17:52:00",
   "dag_branch": "main",
   "github_repo": "OZmasterAI/Torus-PoS-UTXO",
   "network_magic": "0x4d, 0xa7, 0xb3, 0xe6",
@@ -61,5 +62,5 @@
     ]
   },
   "dag_node_count": 174817,
-  "last_response_preview": "Yes, exactly \u2014 `~/.claude` IS being counted as a project. Here's the smoking gun:\n\n**`hooks/boot_pkg/util.py:103-104`**\n```python\nwhile d != os.sep and d != home:\n    if d == claude_dir:\n        return \"torus-framework\", claude_dir, None, None  # <-- THIS\n```\n\nThe fallback git-ancestor walk explicitly returns `\"torus-framework\"` when it hits `~/.claude`. That makes `_is_project_session = True` in orchestrator.py, which then reads `session_count` from `.claude-state.json` (24) instead of `LIVE_ST"
+  "last_response_preview": "The \"3 passes\" claim doesn't hold up in the actual source code. Here's what's really going on:\n\n**It's a single pipeline, not 3 passes:** `detect \u2192 extract \u2192 build \u2192 cluster \u2192 analyze \u2192 report \u2192 export`\n\n**What's real:**\n- **Code extraction** \u2014 tree-sitter AST parsing, fully local, 21 languages. This is legit.\n- **Docs** \u2014 `.md .txt .pdf` use `pypdf` and `html2text` for local text extraction. No bundled LLM SDK.\n- **Images** \u2014 classified as a file type but there's no `anthropic` or `openai` depe"
 }
