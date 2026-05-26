@@ -11,6 +11,7 @@ zk-bridge/contracts/out/
 zk-bridge/contracts/lib/
 src/TORUSd
 src/obj/
+contrib/seeder/dnsseed
 
 ### C++ ###
 # Prerequisites

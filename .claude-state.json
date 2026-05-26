@@ -1,27 +1,29 @@
 {
-  "session_count": 63,
-  "feature": "networking",
+  "session_count": 67,
+  "feature": "dns-seeder",
   "framework_version": "v2.8.0",
-  "what_was_done": "Enabled UPnP by default (net.cpp:53). Added addnode RPC command (rpcnet.cpp). Pushed and tagged v2.0.3 for CI release build. Investigated NAT/peer discovery — only code-level fix remaining is relay mode.",
+  "what_was_done": "Added DNS seeder infrastructure: configured seed1/2/3.torus.cc in net.cpp, cloned sipa/bitcoin-seeder to contrib/seeder/ configured for TORUS protocol, set up DNS records (NS+glue) on Cloudflare/Namecheap. TORUSd node stopped for update — needs restart.",
   "known_issues": [
     "StakeMiner requires vNodes.size() >= 3 to activate - blocks solo/small-network staking",
     "MAX_MONEY set to 200M - needs hard-fork bump before ~2034 (5% annual PoS growth)",
     "release-notes.md still has torus-economy links",
     "Gate 3 blocks git push from Claude - user must push manually",
+    "TORUSd node is STOPPED — must restart before seeder deployment",
     "pnSeed hardcoded seed is VPS own IP (circular) - add real peer IPs when network grows",
     "torus-explorer address page limited in v1 - no address index in daemon RPC",
     "torus-explorer dev server uses port 3001 (3000 occupied by toroidal-economy app)"
   ],
   "next_steps": [
+    "Restart TORUSd node",
+    "Deploy dnsseed binary to 95.111.231.121, open port 53, run seeder",
+    "Recompile TORUSd with new net.cpp for distribution",
     "Verify v2.0.3 release CI completes (Windows Qt + macOS + Docker)",
-    "Consider relay mode implementation for NAT peer connectivity",
-    "Set up DNS seed domain to populate empty strDNSSeed array",
     "Lower vNodes.size() < 3 requirement in miner.cpp:542 to allow staking with fewer peers",
     "torus-explorer: visual QA of responsive hash truncation in browser",
     "torus-explorer: add pagination to blocks list page"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-05-07T17:52:00",
+  "last_updated": "2026-05-10T00:12:59",
   "dag_branch": "main",
   "github_repo": "OZmasterAI/Torus-PoS-UTXO",
   "network_magic": "0x4d, 0xa7, 0xb3, 0xe6",
@@ -62,5 +64,13 @@
     ]
   },
   "dag_node_count": 174817,
-  "last_response_preview": "The \"3 passes\" claim doesn't hold up in the actual source code. Here's what's really going on:\n\n**It's a single pipeline, not 3 passes:** `detect \u2192 extract \u2192 build \u2192 cluster \u2192 analyze \u2192 report \u2192 export`\n\n**What's real:**\n- **Code extraction** \u2014 tree-sitter AST parsing, fully local, 21 languages. This is legit.\n- **Docs** \u2014 `.md .txt .pdf` use `pypdf` and `html2text` for local text extraction. No bundled LLM SDK.\n- **Images** \u2014 classified as a file type but there's no `anthropic` or `openai` depe"
+  "dns_seeder": {
+    "binary": "contrib/seeder/dnsseed",
+    "run_cmd": "./dnsseed -h seed1.torus.cc -n ns1.torus.cc -m admin@torus.cc --magic 4da7b3e6 --p2port 24111",
+    "seeds": ["seed1.torus.cc", "seed2.torus.cc", "seed3.torus.cc"],
+    "ns": "ns1.torus.cc",
+    "dns_provider": "cloudflare",
+    "registrar": "namecheap",
+    "commit": "f8a2598"
+  }
 }
