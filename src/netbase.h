@@ -34,6 +34,12 @@ static const int ADDRV2_FORMAT = 0x20000000;
 
 static const size_t ADDR_TORV3_SIZE = 32;
 
+// BIP155 network IDs
+static const uint8_t BIP155_IPV4  = 1;
+static const uint8_t BIP155_IPV6  = 2;
+static const uint8_t BIP155_TORV2 = 3;
+static const uint8_t BIP155_TORV3 = 4;
+
 /** IP address (IPv6, or IPv4 using mapped IPv6 range (::FFFF:0:0/96)) */
 class CNetAddr
 {
@@ -86,9 +92,60 @@ class CNetAddr
         friend bool operator<(const CNetAddr& a, const CNetAddr& b);
 
         IMPLEMENT_SERIALIZE
-            (
-             READWRITE(FLATDATA(ip));
-            )
+            (({
+             CNetAddr* pthis = const_cast<CNetAddr*>(this);
+             if (nVersion & ADDRV2_FORMAT) {
+                 if (!fRead) {
+                     uint8_t netid;
+                     if (pthis->m_net == NET_TORV3) {
+                         netid = BIP155_TORV3;
+                         READWRITE(netid);
+                         std::vector<unsigned char> addr(pthis->m_addr);
+                         READWRITE(addr);
+                     } else if (pthis->IsIPv4()) {
+                         netid = BIP155_IPV4;
+                         READWRITE(netid);
+                         std::vector<unsigned char> addr(pthis->ip + 12, pthis->ip + 16);
+                         READWRITE(addr);
+                     } else if (pthis->IsTor()) {
+                         netid = BIP155_TORV2;
+                         READWRITE(netid);
+                         std::vector<unsigned char> addr(pthis->ip + 6, pthis->ip + 16);
+                         READWRITE(addr);
+                     } else {
+                         netid = BIP155_IPV6;
+                         READWRITE(netid);
+                         std::vector<unsigned char> addr(pthis->ip, pthis->ip + 16);
+                         READWRITE(addr);
+                     }
+                 } else {
+                     uint8_t netid = 0;
+                     READWRITE(netid);
+                     std::vector<unsigned char> addr;
+                     READWRITE(addr);
+                     pthis->Init();
+                     if (netid == BIP155_IPV4 && addr.size() == 4) {
+                         pthis->m_net = NET_IPV4;
+                         static const unsigned char v4map[12] = {0,0,0,0,0,0,0,0,0,0,0xff,0xff};
+                         memcpy(pthis->ip, v4map, 12);
+                         memcpy(pthis->ip + 12, &addr[0], 4);
+                     } else if (netid == BIP155_IPV6 && addr.size() == 16) {
+                         pthis->m_net = NET_IPV6;
+                         memcpy(pthis->ip, &addr[0], 16);
+                     } else if (netid == BIP155_TORV2 && addr.size() == 10) {
+                         pthis->m_net = NET_TOR;
+                         static const unsigned char pchOC[] = {0xFD,0x87,0xD8,0x7E,0xEB,0x43};
+                         memcpy(pthis->ip, pchOC, 6);
+                         memcpy(pthis->ip + 6, &addr[0], 10);
+                     } else if (netid == BIP155_TORV3 && addr.size() == ADDR_TORV3_SIZE) {
+                         pthis->m_net = NET_TORV3;
+                         pthis->m_addr = addr;
+                     }
+                 }
+             } else {
+                 READWRITE(FLATDATA(ip));
+             }
+            });)
 };
 
 /** A combination of a network address (CNetAddr) and a (TCP) port */
@@ -124,14 +181,18 @@ class CService : public CNetAddr
         CService(const struct sockaddr_in6& addr);
 
         IMPLEMENT_SERIALIZE
-            (
+            (({
              CService* pthis = const_cast<CService*>(this);
-             READWRITE(FLATDATA(ip));
+             if (nVersion & ADDRV2_FORMAT) {
+                 READWRITE(*(CNetAddr*)pthis);
+             } else {
+                 READWRITE(FLATDATA(ip));
+             }
              unsigned short portN = htons(port);
              READWRITE(portN);
              if (fRead)
                  pthis->port = ntohs(portN);
-            )
+            });)
 };
 
 typedef std::pair<CService, int> proxyType;
