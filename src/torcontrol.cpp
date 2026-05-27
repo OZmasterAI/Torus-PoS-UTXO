@@ -141,16 +141,41 @@ void ThreadTorControl(void* parg)
 
         std::string reply;
 
-        // Authenticate
+        // Authenticate — try cookie first, then password, then NULL
         bool fAuth = false;
-        if (!torpassword.empty()) {
-            // HASHEDPASSWORD auth
+
+        // Try cookie auth: read the cookie file and send as hex
+        if (!fAuth) {
+            std::vector<std::string> cookiePaths;
+            cookiePaths.push_back("/run/tor/control.authcookie");
+            cookiePaths.push_back("/var/run/tor/control.authcookie");
+            cookiePaths.push_back("/var/lib/tor/control_auth_cookie");
+            for (size_t i = 0; i < cookiePaths.size() && !fAuth; i++) {
+                std::ifstream cookieFile(cookiePaths[i].c_str(), std::ios::binary);
+                if (cookieFile.good()) {
+                    std::vector<unsigned char> cookie(32);
+                    cookieFile.read((char*)&cookie[0], 32);
+                    if (cookieFile.gcount() == 32) {
+                        std::string hex;
+                        for (int j = 0; j < 32; j++) {
+                            char tmp[3];
+                            snprintf(tmp, sizeof(tmp), "%02X", cookie[j]);
+                            hex += tmp;
+                        }
+                        std::string cmd = "AUTHENTICATE " + hex;
+                        if (TorSendCommand(hSocket, cmd, reply) && ParseReplyCode(reply) == 250)
+                            fAuth = true;
+                    }
+                }
+            }
+        }
+
+        if (!fAuth && !torpassword.empty()) {
             std::string cmd = "AUTHENTICATE \"" + torpassword + "\"";
             if (TorSendCommand(hSocket, cmd, reply) && ParseReplyCode(reply) == 250)
                 fAuth = true;
         }
         if (!fAuth) {
-            // Try NULL auth
             if (TorSendCommand(hSocket, "AUTHENTICATE", reply) && ParseReplyCode(reply) == 250)
                 fAuth = true;
         }
