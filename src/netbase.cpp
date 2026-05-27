@@ -6,6 +6,7 @@
 #include "netbase.h"
 #include "util.h"
 #include "sync.h"
+#include "crypto/sha3.h"
 
 #ifndef WIN32
 #include <sys/fcntl.h>
@@ -554,6 +555,27 @@ bool CNetAddr::SetSpecial(const std::string &strName)
 {
     if (strName.size()>6 && strName.substr(strName.size() - 6, 6) == ".onion") {
         std::vector<unsigned char> vchAddr = DecodeBase32(strName.substr(0, strName.size() - 6).c_str());
+
+        if (vchAddr.size() == 35 && vchAddr[34] == 0x03) {
+            // v3 onion: 32-byte ed25519 pubkey + 2-byte checksum + 1-byte version
+            // verify checksum: SHA3-256(".onion checksum" + pubkey + version)
+            unsigned char hash[32];
+            SHA3_256 ctx;
+            const char *prefix = ".onion checksum";
+            ctx.Write((const unsigned char*)prefix, 15);
+            ctx.Write(&vchAddr[0], 32);
+            unsigned char ver = 0x03;
+            ctx.Write(&ver, 1);
+            ctx.Finalize(hash);
+            if (hash[0] != vchAddr[32] || hash[1] != vchAddr[33])
+                return false;
+
+            Init();
+            m_net = NET_TORV3;
+            m_addr.assign(vchAddr.begin(), vchAddr.begin() + ADDR_TORV3_SIZE);
+            return true;
+        }
+
         if (vchAddr.size() != 16-sizeof(pchOnionCat))
             return false;
         memcpy(ip, pchOnionCat, sizeof(pchOnionCat));
@@ -766,6 +788,23 @@ enum Network CNetAddr::GetNetwork() const
 
 std::string CNetAddr::ToStringIP() const
 {
+    if (m_net == NET_TORV3) {
+        // Build 35-byte payload: pubkey(32) + checksum(2) + version(1)
+        std::vector<unsigned char> payload(35);
+        memcpy(&payload[0], &m_addr[0], 32);
+        unsigned char hash[32];
+        SHA3_256 ctx;
+        const char *prefix = ".onion checksum";
+        ctx.Write((const unsigned char*)prefix, 15);
+        ctx.Write(&m_addr[0], 32);
+        unsigned char ver = 0x03;
+        ctx.Write(&ver, 1);
+        ctx.Finalize(hash);
+        payload[32] = hash[0];
+        payload[33] = hash[1];
+        payload[34] = 0x03;
+        return EncodeBase32(&payload[0], 35) + ".onion";
+    }
     if (IsTor())
         return EncodeBase32(&ip[6], 10) + ".onion";
     if (IsI2P())
