@@ -25,15 +25,22 @@ enum Network
     NET_IPV6,
     NET_TOR,
     NET_I2P,
+    NET_TORV3,
 
     NET_MAX,
 };
+
+static const int ADDRV2_FORMAT = 0x20000000;
+
+static const size_t ADDR_TORV3_SIZE = 32;
 
 /** IP address (IPv6, or IPv4 using mapped IPv6 range (::FFFF:0:0/96)) */
 class CNetAddr
 {
     protected:
         unsigned char ip[16]; // in network byte order
+        Network m_net;
+        std::vector<unsigned char> m_addr;
 
     public:
         CNetAddr();

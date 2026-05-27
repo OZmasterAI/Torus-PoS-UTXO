@@ -29,7 +29,8 @@ enum Network ParseNetwork(std::string net) {
     boost::to_lower(net);
     if (net == "ipv4") return NET_IPV4;
     if (net == "ipv6") return NET_IPV6;
-    if (net == "tor")  return NET_TOR;
+    if (net == "tor" || net == "onion")  return NET_TOR;
+    if (net == "torv3") return NET_TORV3;
     if (net == "i2p")  return NET_I2P;
     return NET_UNROUTABLE;
 }
@@ -535,11 +536,15 @@ bool ConnectSocketByName(CService &addr, SOCKET& hSocketRet, const char *pszDest
 void CNetAddr::Init()
 {
     memset(ip, 0, 16);
+    m_net = NET_IPV6;
+    m_addr.clear();
 }
 
 void CNetAddr::SetIP(const CNetAddr& ipIn)
 {
     memcpy(ip, ipIn.ip, sizeof(ip));
+    m_net = ipIn.m_net;
+    m_addr = ipIn.m_addr;
 }
 
 static const unsigned char pchOnionCat[] = {0xFD,0x87,0xD8,0x7E,0xEB,0x43};

@@ -1,76 +1,53 @@
 {
-  "session_count": 67,
-  "feature": "dns-seeder",
+  "session_count": 71,
+  "feature": "tor-v3-plan",
   "framework_version": "v2.8.0",
-  "what_was_done": "Added DNS seeder infrastructure: configured seed1/2/3.torus.cc in net.cpp, cloned sipa/bitcoin-seeder to contrib/seeder/ configured for TORUS protocol, set up DNS records (NS+glue) on Cloudflare/Namecheap. TORUSd node stopped for update — needs restart.",
+  "what_was_done": "DNS seeder via Cloudflare API, released v2.0.4+v2.0.5, TORUSd in release workflow, UPnP enabled for daemon, UPnP retry fix, 2nd seed node added, Tor v3 plan written, branch tor_v3 created",
   "known_issues": [
-    "StakeMiner requires vNodes.size() >= 3 to activate - blocks solo/small-network staking",
-    "MAX_MONEY set to 200M - needs hard-fork bump before ~2034 (5% annual PoS growth)",
-    "release-notes.md still has torus-economy links",
+    "StakeMiner requires vNodes.size() >= 3 (miner.cpp:542) - only 2 reachable subnets currently",
+    "MAX_MONEY set to 200M - needs hard-fork bump before ~2034",
+    "Home wallets behind NAT not reachable - UPnP not working on most routers",
     "Gate 3 blocks git push from Claude - user must push manually",
-    "TORUSd node is STOPPED — must restart before seeder deployment",
-    "pnSeed hardcoded seed is VPS own IP (circular) - add real peer IPs when network grows",
-    "torus-explorer address page limited in v1 - no address index in daemon RPC",
-    "torus-explorer dev server uses port 3001 (3000 occupied by toroidal-economy app)"
+    "Qt wallet Unix binary has missing shared libs (libssl 1.1, libboost 1.71) - needs static linking"
   ],
   "next_steps": [
-    "Restart TORUSd node",
-    "Deploy dnsseed binary to 95.111.231.121, open port 53, run seeder",
-    "Recompile TORUSd with new net.cpp for distribution",
-    "Verify v2.0.3 release CI completes (Windows Qt + macOS + Docker)",
-    "Lower vNodes.size() < 3 requirement in miner.cpp:542 to allow staking with fewer peers",
-    "torus-explorer: visual QA of responsive hash truncation in browser",
-    "torus-explorer: add pagination to blocks list page"
+    "Track A: Deploy 3-4 TORUSd on different VPS subnets to reach 3+ connections for staking",
+    "Track B: Implement Tor v3 (8 tasks, ~12 days) on branch tor_v3 - plan at docs/plans/tor-v3-impl.md",
+    "Push UPnP retry fix (commit 230a616 on main, not yet pushed)",
+    "Consider lowering vNodes.size() < 3 requirement for small networks",
+    "Add static linking to Dockerfile for portable Unix binary"
   ],
   "project_name": "old-chain",
-  "last_updated": "2026-05-10T00:12:59",
-  "dag_branch": "main",
+  "last_updated": "2026-05-27T21:45:00",
+  "dag_branch": "tor_v3",
   "github_repo": "OZmasterAI/Torus-PoS-UTXO",
   "network_magic": "0x4d, 0xa7, 0xb3, 0xe6",
-  "seed_node": "95.111.231.121",
-  "mining": {
-    "binary": "/tmp/cpuminer-build/minerd",
-    "algo": "sha256d",
-    "rpc_port": 24112,
-    "rpc_user": "torusrpc",
-    "rpc_password_in": "~/.TORUS/TORUS.conf",
-    "threads": 1,
-    "current_block": 2000,
-    "pow_difficulty": 0.005,
-    "hashrate_khps": 7,
-    "fast_pow_active": true,
-    "fast_pow_fork_height": 203,
-    "fast_pow_target_spacing": 8,
-    "last_pow_block": 2000
+  "seed_nodes": ["95.111.231.121", "84.32.108.220"],
+  "dns_seeds_cloudflare": {
+    "zone_id": "c59e2a7ee5287632604decd34f979ce5",
+    "domain": "torus.cc",
+    "prefixes": ["seed1", "seed2", "seed3"],
+    "ips": ["95.111.231.121", "84.32.108.220"]
   },
-  "genesis": {
-    "hash": "0x00000e566b84cb7d88db5bc6f0afa22ede9afbdd4ba0d0ce60f645e5fd49dff8",
-    "merkle_root": "0x44892330242e0f1e2515ca31116b953b532b40abcca746669f2f227bba54afc9",
-    "nonce": 1671673,
-    "stake_modifier_checksum": "0xfd11f4e7",
-    "utxo_count": 28183,
-    "total_supply": "100627087.69302028",
-    "snapshot_height": 835771
+  "network_status": {
+    "total_connected": 21,
+    "unique_nodes": 20,
+    "reachable_nodes": 2,
+    "reachable_ips": ["95.111.231.121", "84.32.108.220"],
+    "tor_exits": "~15 nodes",
+    "block_height": 2000,
+    "staking_active": false
   },
-  "zk_bridge_audit": {
-    "status": "complete",
-    "total_findings": 39,
-    "commits": [
-      "8cdb011",
-      "b141952",
-      "ffc0439",
-      "1b7d240",
-      "6f42fa8"
-    ]
+  "releases": {
+    "v2.0.5": "UPnP default for daemon, 2nd seed node, TORUSd binary in release",
+    "v2.0.4": "DNS seeder + seed hostnames, seeder binary removed from repo"
   },
-  "dag_node_count": 174817,
-  "dns_seeder": {
-    "binary": "contrib/seeder/dnsseed",
-    "run_cmd": "./dnsseed -h seed1.torus.cc -n ns1.torus.cc -m admin@torus.cc --magic 4da7b3e6 --p2port 24111",
-    "seeds": ["seed1.torus.cc", "seed2.torus.cc", "seed3.torus.cc"],
-    "ns": "ns1.torus.cc",
-    "dns_provider": "cloudflare",
-    "registrar": "namecheap",
-    "commit": "f8a2598"
+  "tor_v3_plan": {
+    "location": "docs/plans/tor-v3-impl.md",
+    "tasks_file": "PRPs/tor-v3.tasks.json",
+    "prompt_file": "docs/plans/tor-v3-prompt.md",
+    "branch": "tor_v3",
+    "tasks": 8,
+    "estimated_days": 12
   }
 }
