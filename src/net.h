@@ -219,6 +219,7 @@ public:
     bool fNetworkNode;
     bool fSuccessfullyConnected;
     bool fDisconnect;
+    bool fSupportsAddrV2;
     CSemaphoreGrant grantOutbound;
     int nRefCount;
 protected:
@@ -269,6 +270,7 @@ public:
         fNetworkNode = false;
         fSuccessfullyConnected = false;
         fDisconnect = false;
+        fSupportsAddrV2 = false;
         nRefCount = 0;
         nSendSize = 0;
         nSendOffset = 0;
@@ -452,6 +454,23 @@ public:
     }
 
     void PushVersion();
+
+    void PushAddrV2(const std::vector<CAddress>& vAddr)
+    {
+        try
+        {
+            BeginMessage("addrv2");
+            CDataStream ss(SER_NETWORK, ssSend.GetVersion() | ADDRV2_FORMAT);
+            ss << vAddr;
+            ssSend.write(&ss[0], ss.size());
+            EndMessage();
+        }
+        catch (...)
+        {
+            AbortMessage();
+            throw;
+        }
+    }
 
 
     void PushMessage(const char* pszCommand)
