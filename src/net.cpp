@@ -11,6 +11,7 @@
 #include "addrman.h"
 #include "ui_interface.h"
 #include "ntp.h"
+#include "torcontrol.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -1984,12 +1985,16 @@ void StartNode(void* parg)
 
     // Start periodical NTP sampling thread
     NewThread(ThreadNtpSamples, NULL);
+
+    // Start Tor control port integration (auto-create v3 hidden service)
+    StartTorControl();
 }
 
 bool StopNode()
 {
     printf("StopNode()\n");
     fShutdown = true;
+    StopTorControl();
     nTransactionsUpdated++;
     int64_t nStart = GetTime();
     if (semOutbound)

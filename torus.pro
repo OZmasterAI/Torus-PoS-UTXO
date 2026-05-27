@@ -172,6 +172,8 @@ HEADERS += src/qt/bitcoingui.h \
     src/main.h \
     src/miner.h \
     src/net.h \
+    src/torcontrol.h \
+    src/crypto/sha3.h \
     src/key.h \
     src/db.h \
     src/txdb.h \
@@ -247,6 +249,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/miner.cpp \
     src/init.cpp \
     src/net.cpp \
+    src/torcontrol.cpp \
     src/checkpoints.cpp \
     src/addrman.cpp \
     src/db.cpp \
