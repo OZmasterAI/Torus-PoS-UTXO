@@ -12,13 +12,8 @@
 #include <fstream>
 
 #ifndef WIN32
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
-#else
-#include <winsock2.h>
 #endif
 
 static const int TOR_CONTROL_PORT = 9051;
@@ -114,33 +109,18 @@ void ThreadTorControl(void* parg)
 
     while (!fShutdown)
     {
-        // Parse control address
-        std::string host;
-        int port = TOR_CONTROL_PORT;
-        SplitHostPort(torcontrol, port, host);
-        if (host.empty()) host = "127.0.0.1";
-
-        // Connect to Tor control port
-        struct sockaddr_in addr;
-        memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(port);
-        if (inet_pton(AF_INET, host.c_str(), &addr.sin_addr) != 1) {
-            printf("torcontrol: invalid address %s\n", host.c_str());
+        // Parse and connect to Tor control port
+        CService addrControl;
+        if (!LookupNumeric(torcontrol.c_str(), addrControl, TOR_CONTROL_PORT)) {
+            printf("torcontrol: invalid address %s\n", torcontrol.c_str());
             break;
         }
 
-        SOCKET hSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-        if (hSocket == INVALID_SOCKET) {
-            printf("torcontrol: failed to create socket\n");
-            break;
-        }
-
-        if (connect(hSocket, (struct sockaddr*)&addr, sizeof(addr)) != 0)
+        SOCKET hSocket = INVALID_SOCKET;
+        if (!ConnectSocket(addrControl, hSocket, 5000))
         {
-            closesocket(hSocket);
             if (fShutdown) break;
-            printf("torcontrol: failed to connect to %s:%d, retrying in %ds\n", host.c_str(), port, backoff);
+            printf("torcontrol: failed to connect to %s, retrying in %ds\n", addrControl.ToString().c_str(), backoff);
             for (int i = 0; i < backoff && !fShutdown; i++)
                 MilliSleep(1000);
             backoff = std::min(backoff * 2, MAX_BACKOFF);
@@ -156,7 +136,7 @@ void ThreadTorControl(void* parg)
         fcntl(hSocket, F_SETFL, flags | O_NONBLOCK);
 #endif
 
-        printf("torcontrol: connected to %s:%d\n", host.c_str(), port);
+        printf("torcontrol: connected to %s\n", addrControl.ToString().c_str());
         backoff = 1;
 
         std::string reply;
