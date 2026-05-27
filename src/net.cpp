@@ -1204,16 +1204,17 @@ void ThreadMapPort2(void* parg)
             i++;
         }
     } else {
-        printf("No valid UPnP IGDs found\n");
+        printf("No valid UPnP IGDs found, will retry in 5 minutes\n");
         freeUPNPDevlist(devlist); devlist = 0;
         if (r != 0)
             FreeUPNPUrls(&urls);
-        while (true)
+        for (int i = 0; i < 150; i++)
         {
             if (fShutdown || !fUseUPnP)
                 return;
             MilliSleep(2000);
         }
+        MapPort();
     }
 }
 
