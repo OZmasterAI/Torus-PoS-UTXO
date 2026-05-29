@@ -9,6 +9,8 @@
 #include "base58.h"
 #include "main.h"
 #include "script.h"
+#include "coincontrol.h"
+#include "coincontroldialog.h"
 
 #include <QMessageBox>
 
@@ -18,6 +20,7 @@ StakePage::StakePage(QWidget *parent) :
     model(0)
 {
     ui->setupUi(this);
+    connect(ui->coinControlButton, SIGNAL(clicked()), this, SLOT(on_coinControlButton_clicked()));
 }
 
 StakePage::~StakePage()
@@ -116,16 +119,32 @@ void StakePage::on_stakeButton_clicked()
     scriptPermanent << OP_PERMANENT_LOCK << vchPubKey << OP_CHECKSIG;
 
     CWalletTx wtx;
-    std::string strError = pwalletMain->SendMoney(scriptPermanent, nAmount, wtx);
-    if(strError != "")
+    int64_t nFeeRequired;
+    const CCoinControl *coinControl = CoinControlDialog::coinControl->HasSelected() ? CoinControlDialog::coinControl : NULL;
+    if(!pwalletMain->CreateTransaction(scriptPermanent, nAmount, wtx, reservekey, nFeeRequired, coinControl))
     {
+        std::string strError;
+        if (nAmount + nFeeRequired > pwalletMain->GetBalance())
+            strError = strprintf(_("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds  "), FormatMoney(nFeeRequired).c_str());
+        else
+            strError = _("Error: Transaction creation failed  ");
         QMessageBox::critical(this, tr("Permanent Stake"),
             tr("Error: %1").arg(QString::fromStdString(strError)),
             QMessageBox::Ok);
         return;
     }
 
+    if(!pwalletMain->CommitTransaction(wtx, reservekey))
+    {
+        QMessageBox::critical(this, tr("Permanent Stake"),
+            tr("Error: The transaction was rejected."),
+            QMessageBox::Ok);
+        return;
+    }
+
     reservekey.KeepKey();
+    CoinControlDialog::coinControl->UnSelectAll();
+    coinControlUpdateLabels();
 
     QMessageBox::information(this, tr("Permanent Stake"),
         tr("Successfully locked %1 for permanent staking.\n\nTransaction: %2")
@@ -134,4 +153,40 @@ void StakePage::on_stakeButton_clicked()
         QMessageBox::Ok);
 
     ui->stakeAmount->clear();
+}
+
+void StakePage::on_coinControlButton_clicked()
+{
+    CoinControlDialog dlg;
+    dlg.setModel(model);
+    dlg.exec();
+    coinControlUpdateLabels();
+}
+
+void StakePage::coinControlUpdateLabels()
+{
+    if(!model)
+        return;
+
+    if(CoinControlDialog::coinControl->HasSelected())
+    {
+        std::vector<COutPoint> vOutpoints;
+        CoinControlDialog::coinControl->ListSelected(vOutpoints);
+
+        qint64 nTotal = 0;
+        for (const COutPoint& out : vOutpoints)
+            nTotal += pwalletMain->mapWallet[out.hash].vout[out.n].nValue;
+
+        int unit = model->getOptionsModel()->getDisplayUnit();
+        ui->labelCoinControlInfo->setText(
+            tr("%1 inputs selected (%2)")
+                .arg(vOutpoints.size())
+                .arg(BitcoinUnits::formatWithUnit(unit, nTotal)));
+        ui->labelCoinControlInfo->setStyleSheet("");
+    }
+    else
+    {
+        ui->labelCoinControlInfo->setText(tr("(automatic coin selection)"));
+        ui->labelCoinControlInfo->setStyleSheet("QLabel { color: gray; }");
+    }
 }

@@ -48,6 +48,34 @@
        </widget>
       </item>
       <item>
+       <layout class="QHBoxLayout" name="coinControlLayout">
+        <item>
+         <widget class="QPushButton" name="coinControlButton">
+          <property name="text">
+           <string>Choose Inputs...</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="labelCoinControlInfo">
+          <property name="text">
+           <string>(automatic coin selection)</string>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QLabel { color: gray; }</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="coinControlSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
        <layout class="QFormLayout" name="formLayout">
         <property name="horizontalSpacing">
          <number>12</number>
