@@ -221,6 +221,13 @@ tags
 [._]*.un~
 
 
+# Claude Code
+.claude-state.json
+.claude/
+
+# Editor configs
+.zed/
+
 ### Keys
 keys
 
