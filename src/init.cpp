@@ -623,6 +623,18 @@ bool AppInit2()
         SetReachable(NET_TOR);
     }
 
+    // Auto-detect Tor: if no -proxy/-tor set, probe 127.0.0.1:9050
+    if (!fProxy && !mapArgs.count("-tor") && !(mapArgs.count("-tor") && mapArgs["-tor"] == "0")) {
+        CService addrTorProbe("127.0.0.1", 9050);
+        SOCKET hSocket;
+        if (ConnectSocket(addrTorProbe, hSocket, 1000)) {
+            closesocket(hSocket);
+            SetProxy(NET_TOR, addrTorProbe, 5);
+            SetReachable(NET_TOR);
+            printf("Tor auto-detected on 127.0.0.1:9050, enabling for .onion connections\n");
+        }
+    }
+
     // see Step 2: parameter interactions for more information about these
     fListen = GetBoolArg("-listen", true);
     fDiscover = GetBoolArg("-discover", true);
