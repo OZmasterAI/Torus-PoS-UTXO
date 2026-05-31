@@ -127,7 +127,8 @@ void StakePage::on_stakeButton_clicked()
     }
     else
     {
-        scriptPermanent = CScript(existingScript.begin(), existingScript.end());
+        const unsigned char* pbegin = (const unsigned char*)existingScript.constData();
+        scriptPermanent = CScript(pbegin, pbegin + existingScript.size());
     }
 
     CWalletTx wtx;
