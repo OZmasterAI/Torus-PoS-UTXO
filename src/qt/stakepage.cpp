@@ -13,6 +13,7 @@
 #include "coincontroldialog.h"
 
 #include <QMessageBox>
+#include <QComboBox>
 
 StakePage::StakePage(QWidget *parent) :
     QWidget(parent),
@@ -36,10 +37,12 @@ void StakePage::setModel(WalletModel *model)
     {
         setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(), model->getImmatureBalance(), model->getPermanentStakeBalance());
         connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64, qint64)), this, SLOT(setBalance(qint64, qint64, qint64, qint64, qint64)));
+        connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64, qint64)), this, SLOT(updateStakeDestinations()));
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
     }
 
     updateDisplayUnit();
+    updateStakeDestinations();
 }
 
 void StakePage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance, qint64 permanentStakeBalance)
@@ -104,19 +107,28 @@ void StakePage::on_stakeButton_clicked()
     if(!ctx.isValid())
         return;
 
-    // Build permanent stake script
+    // Build permanent stake script — reuse existing key or generate new one
     CReserveKey reservekey(pwalletMain);
-    CPubKey vchPubKey;
-    if(!reservekey.GetReservedKey(vchPubKey))
-    {
-        QMessageBox::critical(this, tr("Permanent Stake"),
-            tr("Error: Keypool ran out, please call keypoolrefill first."),
-            QMessageBox::Ok);
-        return;
-    }
-
     CScript scriptPermanent;
-    scriptPermanent << OP_PERMANENT_LOCK << vchPubKey << OP_CHECKSIG;
+    int idx = ui->stakeDestination->currentIndex();
+    QByteArray existingScript = ui->stakeDestination->itemData(idx).toByteArray();
+
+    if(existingScript.isEmpty())
+    {
+        CPubKey vchPubKey;
+        if(!reservekey.GetReservedKey(vchPubKey))
+        {
+            QMessageBox::critical(this, tr("Permanent Stake"),
+                tr("Error: Keypool ran out, please call keypoolrefill first."),
+                QMessageBox::Ok);
+            return;
+        }
+        scriptPermanent << OP_PERMANENT_LOCK << vchPubKey << OP_CHECKSIG;
+    }
+    else
+    {
+        scriptPermanent = CScript(existingScript.begin(), existingScript.end());
+    }
 
     CWalletTx wtx;
     int64_t nFeeRequired;
@@ -142,9 +154,11 @@ void StakePage::on_stakeButton_clicked()
         return;
     }
 
-    reservekey.KeepKey();
+    if(existingScript.isEmpty())
+        reservekey.KeepKey();
     CoinControlDialog::coinControl->UnSelectAll();
     coinControlUpdateLabels();
+    updateStakeDestinations();
 
     QMessageBox::information(this, tr("Permanent Stake"),
         tr("Successfully locked %1 for permanent staking.\n\nTransaction: %2")
@@ -189,4 +203,61 @@ void StakePage::coinControlUpdateLabels()
         ui->labelCoinControlInfo->setText(tr("(automatic coin selection)"));
         ui->labelCoinControlInfo->setStyleSheet("QLabel { color: gray; }");
     }
+}
+
+void StakePage::updateStakeDestinations()
+{
+    if(!model)
+        return;
+
+    int prevIdx = ui->stakeDestination->currentIndex();
+    QByteArray prevData = ui->stakeDestination->itemData(prevIdx).toByteArray();
+    ui->stakeDestination->clear();
+    ui->stakeDestination->addItem(tr("Create new address"), QByteArray());
+
+    int unit = model->getOptionsModel()->getDisplayUnit();
+    std::map<std::string, std::pair<int64_t, CScript> > mapStakes;
+
+    {
+        LOCK(pwalletMain->cs_wallet);
+        for (std::map<uint256, CWalletTx>::const_iterator it = pwalletMain->mapWallet.begin();
+             it != pwalletMain->mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (!pcoin->IsFinal() || !pcoin->IsTrusted())
+                continue;
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++)
+            {
+                if (pcoin->IsSpent(i) || !IsMine(*pwalletMain, pcoin->vout[i].scriptPubKey))
+                    continue;
+                if (!IsPermanentStakeScript(pcoin->vout[i].scriptPubKey))
+                    continue;
+
+                CTxDestination dest;
+                if (!ExtractDestination(pcoin->vout[i].scriptPubKey, dest))
+                    continue;
+
+                std::string addr = CBitcoinAddress(dest).ToString();
+                mapStakes[addr].first += pcoin->vout[i].nValue;
+                mapStakes[addr].second = pcoin->vout[i].scriptPubKey;
+            }
+        }
+    }
+
+    int restoreIdx = 0;
+    for (std::map<std::string, std::pair<int64_t, CScript> >::const_iterator it = mapStakes.begin();
+         it != mapStakes.end(); ++it)
+    {
+        const CScript& script = it->second.second;
+        QByteArray scriptData((const char*)&script[0], script.size());
+        QString label = QString("%1 (%2)")
+            .arg(QString::fromStdString(it->first))
+            .arg(BitcoinUnits::formatWithUnit(unit, it->second.first));
+        ui->stakeDestination->addItem(label, scriptData);
+
+        if(!prevData.isEmpty() && scriptData == prevData)
+            restoreIdx = ui->stakeDestination->count() - 1;
+    }
+
+    ui->stakeDestination->setCurrentIndex(restoreIdx);
 }
