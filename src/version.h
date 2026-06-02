@@ -30,13 +30,16 @@ static const int DATABASE_VERSION = 70509;
 // network protocol versioning
 //
 
-static const int PROTOCOL_VERSION = 60124;
+static const int PROTOCOL_VERSION = 60125;
 
 // intial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;
 
 // disconnect from peers older than this proto version
 static const int MIN_PEER_PROTO_VERSION = 60124;
+
+// addrv2 (BIP155) support starts with this version
+static const int ADDRV2_PROTO_VERSION = 60125;
 
 // nTime field added to CAddress, starting with this version;
 // if possible, avoid requesting addresses nodes older than this

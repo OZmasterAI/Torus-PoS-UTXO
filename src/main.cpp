@@ -2911,6 +2911,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         pfrom->PushMessage("verack");
         pfrom->ssSend.SetVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
 
+        if (pfrom->nVersion >= ADDRV2_PROTO_VERSION)
+            pfrom->PushMessage("sendaddrv2");
+
         if (!pfrom->fInbound)
         {
             // Advertise our address
@@ -2993,6 +2996,70 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
     else if (strCommand == "verack")
     {
         pfrom->SetRecvVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
+    }
+
+    else if (strCommand == "sendaddrv2")
+    {
+        pfrom->fSupportsAddrV2 = true;
+    }
+
+    else if (strCommand == "addrv2")
+    {
+        vector<CAddress> vAddr;
+        CDataStream vAddrV2(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion() | ADDRV2_FORMAT);
+        vAddrV2 >> vAddr;
+
+        if (pfrom->nVersion < CADDR_TIME_VERSION && addrman.size() > 1000)
+            return true;
+        if (vAddr.size() > 1000)
+        {
+            pfrom->Misbehaving(20);
+            return error("message addrv2 size() = %lu", vAddr.size());
+        }
+
+        vector<CAddress> vAddrOk;
+        int64_t nNow = GetAdjustedTime();
+        int64_t nSince = nNow - 10 * 60;
+        for (CAddress& addr : vAddr)
+        {
+            if (fShutdown)
+                return true;
+            if (addr.nTime <= 100000000 || addr.nTime > nNow + 10 * 60)
+                addr.nTime = nNow - 5 * 24 * 60 * 60;
+            pfrom->AddAddressKnown(addr);
+            bool fReachable = IsReachable(addr);
+            if (addr.nTime > nSince && !pfrom->fGetAddr && vAddr.size() <= 10 && addr.IsRoutable())
+            {
+                LOCK(cs_vNodes);
+                static uint256 hashSalt;
+                if (hashSalt == 0)
+                    hashSalt = GetRandHash();
+                uint64_t hashAddr = addr.GetHash();
+                uint256 hashRand = hashSalt ^ (hashAddr<<32) ^ ((GetTime()+hashAddr)/(24*60*60));
+                hashRand = Hash(BEGIN(hashRand), END(hashRand));
+                multimap<uint256, CNode*> mapMix;
+                for (CNode* pnode : vNodes)
+                {
+                    if (pnode->nVersion < CADDR_TIME_VERSION)
+                        continue;
+                    unsigned int nPointer;
+                    memcpy(&nPointer, &pnode, sizeof(nPointer));
+                    uint256 hashKey = hashRand ^ nPointer;
+                    hashKey = Hash(BEGIN(hashKey), END(hashKey));
+                    mapMix.insert(make_pair(hashKey, pnode));
+                }
+                int nRelayNodes = fReachable ? 2 : 1;
+                for (multimap<uint256, CNode*>::iterator mi = mapMix.begin(); mi != mapMix.end() && nRelayNodes-- > 0; ++mi)
+                    ((*mi).second)->PushAddress(addr);
+            }
+            if (fReachable)
+                vAddrOk.push_back(addr);
+        }
+        addrman.Add(vAddrOk, pfrom->addr, 2 * 60 * 60);
+        if (vAddr.size() < 1000)
+            pfrom->fGetAddr = false;
+        if (pfrom->fOneShot)
+            pfrom->fDisconnect = true;
     }
 
     else if (strCommand == "addr")
@@ -3663,29 +3730,41 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         }
 
         //
-        // Message: addr
+        // Message: addr / addrv2
         //
         if (fSendTrickle)
         {
             vector<CAddress> vAddr;
+            vector<CAddress> vAddrV2;
             vAddr.reserve(pto->vAddrToSend.size());
             for (const CAddress& addr : pto->vAddrToSend)
             {
-                // returns true if wasn't already contained in the set
                 if (pto->setAddrKnown.insert(addr).second)
                 {
-                    vAddr.push_back(addr);
-                    // receiver rejects addr messages larger than 1000
-                    if (vAddr.size() >= 1000)
-                    {
-                        pto->PushMessage("addr", vAddr);
-                        vAddr.clear();
+                    if (pto->fSupportsAddrV2) {
+                        vAddrV2.push_back(addr);
+                        if (vAddrV2.size() >= 1000)
+                        {
+                            pto->PushAddrV2(vAddrV2);
+                            vAddrV2.clear();
+                        }
+                    } else {
+                        if (addr.GetNetwork() == NET_TORV3)
+                            continue;
+                        vAddr.push_back(addr);
+                        if (vAddr.size() >= 1000)
+                        {
+                            pto->PushMessage("addr", vAddr);
+                            vAddr.clear();
+                        }
                     }
                 }
             }
             pto->vAddrToSend.clear();
             if (!vAddr.empty())
                 pto->PushMessage("addr", vAddr);
+            if (!vAddrV2.empty())
+                pto->PushAddrV2(vAddrV2);
         }
 
         //

@@ -269,8 +269,15 @@ public:
         // changes to the ADDRMAN_ parameters without breaking the on-disk structure.
         {
             LOCK(cs);
-            unsigned char nVersion = 0;
-            READWRITE(nVersion);
+            unsigned char nSerVersion = 1;
+            if (fWrite) {
+                READWRITE(nSerVersion);
+            } else {
+                READWRITE(nSerVersion);
+            }
+            if (nSerVersion >= 1) {
+                nVersion |= ADDRV2_FORMAT;
+            }
             READWRITE(nKey);
             READWRITE(nNew);
             READWRITE(nTried);

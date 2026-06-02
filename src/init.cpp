@@ -236,6 +236,9 @@ std::string HelpMessage()
         "  -proxy=<ip:port>       " + _("Connect through socks proxy") + "\n" +
         "  -socks=<n>             " + _("Select the version of socks proxy to use (4-5, default: 5)") + "\n" +
         "  -tor=<ip:port>         " + _("Use proxy to reach tor hidden services (default: same as -proxy)") + "\n"
+        "  -listenonion           " + _("Auto-create Tor v3 hidden service (default: 1)") + "\n"
+        "  -torcontrol=<ip:port>  " + _("Tor control port (default: 127.0.0.1:9051)") + "\n"
+        "  -torpassword=<pass>    " + _("Tor control port password") + "\n"
         "  -dns                   " + _("Allow DNS lookups for -addnode, -seednode and -connect") + "\n" +
         "  -port=<port>           " + _("Listen for connections on <port> (default: 4859 or testnet: 15266)") + "\n" +
         "  -maxconnections=<n>    " + _("Maintain at most <n> connections to peers (default: 125)") + "\n" +
@@ -618,6 +621,18 @@ bool AppInit2()
             return InitError(strprintf(_("Invalid -tor address: '%s'"), mapArgs["-tor"].c_str()));
         SetProxy(NET_TOR, addrOnion, 5);
         SetReachable(NET_TOR);
+    }
+
+    // Auto-detect Tor: if no -proxy/-tor set, probe 127.0.0.1:9050
+    if (!fProxy && !mapArgs.count("-tor") && !(mapArgs.count("-tor") && mapArgs["-tor"] == "0")) {
+        CService addrTorProbe("127.0.0.1", 9050);
+        SOCKET hSocket;
+        if (ConnectSocket(addrTorProbe, hSocket, 1000)) {
+            closesocket(hSocket);
+            SetProxy(NET_TOR, addrTorProbe, 5);
+            SetReachable(NET_TOR);
+            printf("Tor auto-detected on 127.0.0.1:9050, enabling for .onion connections\n");
+        }
     }
 
     // see Step 2: parameter interactions for more information about these

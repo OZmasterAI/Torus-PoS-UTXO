@@ -11,6 +11,7 @@
 #include "addrman.h"
 #include "ui_interface.h"
 #include "ntp.h"
+#include "torcontrol.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -1321,7 +1322,8 @@ void ThreadDNSAddressSeed2(void* parg)
 unsigned int pnSeed[] =
 {
     0x79e76f5f, // 95.111.231.121
-    0xdc6c2054  // 84.32.108.220
+    0xdc6c2054, // 84.32.108.220
+    0xfaeba767  // 103.167.235.250
 };
 
 void DumpAddresses()
@@ -1984,12 +1986,16 @@ void StartNode(void* parg)
 
     // Start periodical NTP sampling thread
     NewThread(ThreadNtpSamples, NULL);
+
+    // Start Tor control port integration (auto-create v3 hidden service)
+    StartTorControl();
 }
 
 bool StopNode()
 {
     printf("StopNode()\n");
     fShutdown = true;
+    StopTorControl();
     nTransactionsUpdated++;
     int64_t nStart = GetTime();
     if (semOutbound)

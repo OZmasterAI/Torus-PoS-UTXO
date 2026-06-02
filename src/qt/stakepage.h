@@ -23,7 +23,10 @@ public slots:
 
 private slots:
     void on_stakeButton_clicked();
+    void on_coinControlButton_clicked();
     void updateDisplayUnit();
+    void coinControlUpdateLabels();
+    void updateStakeDestinations();
 
 private:
     Ui::StakePage *ui;
